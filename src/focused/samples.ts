@@ -84,7 +84,8 @@ title: 注文の処理
 %% archmap: {"view":"activity"}
 stateDiagram-v2
   direction TB
-  state "在庫あり？" as stock <<choice>>
+  state stock <<choice>>
+  stock : 在庫あり？
   state parallel <<fork>>
   state complete <<join>>
   state "決済" as payment

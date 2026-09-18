@@ -460,6 +460,18 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         ? [start, ea, { x: ea.x, y: y + lane }, { x: x + lane, y: y + lane }, { x: x + lane, y: eb.y }, eb, end]
         : [start, ea, { x: x + lane, y: ea.y }, { x: x + lane, y: y + lane }, { x: eb.x, y: y + lane }, eb, end]);
     }
+    if (model.kind === 'activity') {
+      // Long branches must be able to turn before the middle of a shared gap.
+      // Otherwise their fixed escape segment can overlap a neighboring arrival
+      // and visually turn two unrelated flows into a single connection.
+      const stub = (p: DiagramPoint, side: Side): DiagramPoint => ({
+        x: p.x + (side === 'left' ? -16 : side === 'right' ? 16 : 0),
+        y: p.y + (side === 'top' ? -16 : side === 'bottom' ? 16 : 0),
+      });
+      const first = stub(start, sa), last = stub(end, sb);
+      for (const y of yGutters) candidates.push([start, first, {x:first.x,y}, {x:last.x,y}, last, end]);
+      for (const x of xGutters) candidates.push([start, first, {x,y:first.y}, {x,y:last.y}, last, end]);
+    }
     if (a.screen && b.screen) {
       // Offer every available track in the gutters instead of cycling four lanes.
       const reach = Math.floor((Math.min(gapX, gapY) / 2 - 16) / 16);
@@ -493,7 +505,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
-          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += a.screen && b.screen ? 1e7 : 2200;
+          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += model.kind === 'activity' || a.screen && b.screen ? 1e7 : 2200;
           if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += 240;
         }
       }

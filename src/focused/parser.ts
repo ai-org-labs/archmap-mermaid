@@ -2,7 +2,7 @@ import mermaid from 'mermaid';
 import { load, FAILSAFE_SCHEMA } from 'js-yaml';
 import type { FlowDB } from 'mermaid/dist/diagrams/flowchart/flowDb.js';
 import type { SequenceDB } from 'mermaid/dist/diagrams/sequence/sequenceDb.js';
-import type { StateDB } from 'mermaid/dist/diagrams/state/stateDb.js';
+import type { StateDB, StateStmt } from 'mermaid/dist/diagrams/state/stateDb.js';
 import type { DiagramModel, DiagramNode, DiagramKind, DiagramShape, DiagramColor, DiagramFragmentEvent } from './types.js';
 import { getIcon } from '../icons.js';
 
@@ -43,14 +43,14 @@ async function parse(source: string): Promise<DiagramModel> {
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     if(/%%\s*\{/.test(source))error('Mermaid の init ディレクティブは未対応です。');
     const front=/^\s*---\s*\n([\s\S]*?)\n---/.exec(source);
-    if(front){const v=load(front[1],{schema:FAILSAFE_SCHEMA});if(!record(v)||Object.keys(v).some(k=>k!=='title')||typeof v.title!=='string')error('frontmatter は文字列の title のみ対応しています。');}
+    if(front){const v=load(front[1],{schema:FAILSAFE_SCHEMA});if(!record(v)||Object.keys(v).some(k=>k!=='title')||typeof v.title!=='string')error('frontmatter は文字列の title のみ対応しています。');else model.title=v.title;}
     if(model.diagnostics.some(d=>d.severity==='error'))return model;
     const body=source.replace(/^\s*---\s*\n[\s\S]*?\n---/,'').replace(/^\s*%%.*$/gm,'').trim();
     if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 です。');return model;}
     if(/(?:^|;)\s*click\s+/m.test(body)){error('click / リンク操作は未対応です。');return model;}
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
     const diagram=await mermaid.mermaidAPI.getDiagramFromText(source);
-    model.title=text(diagram.db.getDiagramTitle?.());
+    model.title=text(diagram.db.getDiagramTitle?.()) || model.title;
     if(diagram.type.startsWith('flowchart')) {
       const db=diagram.db as FlowDB;
       model.kind=(metadata.view as DiagramKind) || 'system'; direction(db.getDirection());
@@ -103,13 +103,29 @@ async function parse(source: string): Promise<DiagramModel> {
     } else if(diagram.type.startsWith('state')) {
       const db=diagram.db as StateDB;model.kind=(metadata.view as DiagramKind)||'screens';direction(db.getDirection());
       if(!['screens','activity'].includes(model.kind))error('stateDiagram-v2 の view は screens / activity です。');
+      // getData() is Mermaid's renderer model: adding a description can turn a
+      // semantic choice/fork/join into a generic rect there. Preserve the type
+      // from the parsed state declarations, including nested state documents.
+      const specialStates = new Map<string, DiagramShape>();
+      const collectState = (state: StateStmt): void => {
+        const shape = {choice:'decision',fork:'fork',join:'join'}[state.type as 'choice'|'fork'|'join'] as DiagramShape | undefined;
+        if(shape) {
+          specialStates.set(state.id, shape);
+          if(/^".*"\s+as\s+/.test(state.id)) error('判断・fork・join は state ID <<choice>> のように宣言し、表示名は別行の ID : 表示名 で指定してください。');
+        }
+        for(const statement of state.doc || []) {
+          if(statement.stmt==='state'||statement.stmt==='default') collectState(statement);
+          else if(statement.stmt==='relation') { collectState(statement.state1); collectState(statement.state2); }
+        }
+      };
+      for(const state of db.getStates().values()) collectState(state);
       const data=db.getData();
       for(const v of data.nodes){
         if(v.isGroup){model.groups.push({id:v.id,label:text(v.label),color:'blue',parent:v.parentId,line:0});continue;}
         const shapes:Record<string,DiagramShape>={rect:'card',rectWithTitle:'card',roundedWithTitle:'card',stateStart:'start',stateEnd:'end',choice:'decision',fork:'fork',join:'join'};
         if(!shapes[v.shape])error(`状態 ${v.id}: 形状 ${v.shape} は未対応です。`);
         const label=v.shape==='stateStart'?'開始':v.shape==='stateEnd'?'終了':text(v.label || v.id);
-        model.nodes.push(node(v.id,label,shapes[v.shape]||'card',v.parentId));
+        model.nodes.push(node(v.id,label,specialStates.get(v.id)||shapes[v.shape]||'card',v.parentId));
         if(v.cssStyles.length||v.cssCompiledStyles?.length)warning('状態の装飾はArchMapのテーマで描画します。');
       }
       for(const e of data.edges)model.edges.push({from:e.start,to:e.end,label:text(e.label),style:'solid',bidirectional:false,line:0});
