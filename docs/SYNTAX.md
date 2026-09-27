@@ -42,7 +42,7 @@ flowchart LR
   end
 ```
 
-`subgraph` は入れ子にできます。状態図では `state NAME { ... }` がグループになります。グループそのものへの接続は未対応です。グループ内の具体的なノードに接続してください。グループ個別の方向は警告を出し、図全体の方向を使用します。
+`subgraph` は入れ子にできます。状態図では `state NAME { ... }` がグループになります。グループIDへの接続はグループ枠に接続します（例: `Client --> cloud`、`cloud --> Storage`）。グループ間、入れ子のグループ、内部ノードとの接続にも対応します。グループ個別の方向は警告を出し、図全体の方向を使用します。
 
 ## シーケンスと活性区間
 
@@ -163,7 +163,7 @@ flowchart LR
 
 ## 未対応と互換性
 
-この版はMermaid完全互換ではありません。`architecture-beta`、ER、クラス図などの他の図種、RL / BT方向、グループへの接続、シーケンスの Note / box / create / destroy / critical / break / rect / クロス矢印、状態図のnote・同時状態、外部画像、click、init、frontmatterのconfigはエラーになります。
+この版はMermaid完全互換ではありません。`architecture-beta`、ER、クラス図などの他の図種、RL / BT方向、シーケンスの Note / box / create / destroy / critical / break / rect / クロス矢印、状態図のnote・同時状態、外部画像、click、init、frontmatterのconfigはエラーになります。
 
 MermaidのCSS装飾・クラス・接続アニメーション・個別グループの方向は警告を表示し、ArchMapの表示に統一します。Markdownラベルの装飾は文字列として表示します。HTMLラベルを実行せず、外部アイコンを取得しません。構文上正しくても、この対応範囲にない機能は利用できません。
 

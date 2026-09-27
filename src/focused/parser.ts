@@ -158,9 +158,9 @@ async function parse(source: string): Promise<DiagramModel> {
       }}
     }
     if(model.nodes.length>400||model.groups.length>200||model.edges.length>1000||(model.screenActions?.length||0)>1000)error('上限は400ノード・200グループ・1,000接続・1,000操作です。');
-    const ids=new Set(model.nodes.map(n=>n.id)),cells=new Set<string>();
+    const ids=new Set([...model.nodes.map(n=>n.id), ...model.groups.map(g=>g.id)]),cells=new Set<string>();
     for(const n of model.nodes){if(n.icon&&!getIcon(n.icon))error(`未登録アイコン: ${n.icon}`);if(n.at){const cell=n.at.join(',');if(cells.has(cell))error(`配置 ${cell} が重複しています。`);cells.add(cell);}}
-    for(const edge of model.edges)if(!ids.has(edge.from)||!ids.has(edge.to))error('グループそのものへの接続は未対応です。グループ内のノードに接続してください。');
+    for(const edge of model.edges)if(!ids.has(edge.from)||!ids.has(edge.to))error('接続先のノードまたはグループが存在しません。');
     for(const group of model.groups){const seen=new Set([group.id]);let p=group.parent;while(p){if(seen.has(p)){error('グループの循環は未対応です。');break;}seen.add(p);p=model.groups.find(g=>g.id===p)?.parent;}if(seen.size>8)error('グループの入れ子は8段までです。');}
     if(model.style==='icons' && !['system','layers'].includes(model.kind))error('icons 表示は system / layers 専用です。');
     if(['sequence','layers'].includes(model.kind) && model.nodes.some(n=>n.at))warning('この表示では at を使わず、参加者またはグループの順序で配置します。');

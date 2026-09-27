@@ -1,0 +1,456 @@
+{
+  "kind": "system",
+  "direction": "LR",
+  "title": "Routing regression",
+  "nodes": [
+    {
+      "id": "n11",
+      "label": "字字字字字字字字字",
+      "shape": "card",
+      "group": "n22",
+      "color": "blue",
+      "line": 0,
+      "description": "字字字字字字字字字字字字字字字nnn/字",
+      "at": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "n09",
+      "label": "inn ninnnnnnnnnninn",
+      "shape": "card",
+      "group": "n00",
+      "color": "purple",
+      "line": 0,
+      "description": "ninnnnn 字 (in, n, n, 字字, 字字) 字字字字字字字字",
+      "at": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "n08",
+      "label": "nnnnnnnnnnnnnnninnn",
+      "shape": "card",
+      "group": "n00",
+      "color": "purple",
+      "line": 0,
+      "description": "nnnn++字字字字字字 nnnnnnnnnn 字字字",
+      "at": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "n01",
+      "label": "nnnnnin ninnnnnnnnnninn",
+      "shape": "card",
+      "group": "n00",
+      "color": "purple",
+      "line": 0,
+      "description": "Mnninnnnnnn 字 (in, n, n, 字字, 字字) 字",
+      "at": [
+        2,
+        4
+      ]
+    },
+    {
+      "id": "n10",
+      "label": "nni 字字字字",
+      "shape": "card",
+      "group": "n00",
+      "color": "purple",
+      "line": 0,
+      "description": "nni字字字字字字 nnnnnnnnnn 字字字",
+      "at": [
+        2,
+        5
+      ]
+    },
+    {
+      "id": "n16",
+      "label": "nnnnnnnnnnnnninn",
+      "shape": "card",
+      "group": "n00",
+      "color": "purple",
+      "line": 0,
+      "description": "字字字字字字字inn字nnnnnin字字字字字字字字 nnninn 字字字 nnnnnn",
+      "at": [
+        2,
+        6
+      ]
+    },
+    {
+      "id": "n02",
+      "label": "nnnnnnnnnnnnnnn",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字nnnnnnnnn / nnnnn / nnnnnnninn / nnnnnnnnin / nnin字字字字字字字字字字字字字字",
+      "at": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "n05",
+      "label": "nnnnnin",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字字字字字字字字字字字字字字字字字字",
+      "at": [
+        4,
+        1
+      ]
+    },
+    {
+      "id": "n21",
+      "label": "nninnnnnnnnnnn",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字字字字字字字字字字字字字字字字",
+      "at": [
+        4,
+        3
+      ]
+    },
+    {
+      "id": "n12",
+      "label": "ninnnnnnnn",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字字0字0 字字字字字字",
+      "at": [
+        4,
+        5
+      ]
+    },
+    {
+      "id": "n07",
+      "label": "字字字字字字字",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字字字字字字字字字0字字字字字 nnnn",
+      "at": [
+        4,
+        7
+      ]
+    },
+    {
+      "id": "n19",
+      "label": "nnnnninn",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字nnnnnn(nini, nnnnnnn) / nnnn(nini)",
+      "at": [
+        5,
+        2
+      ]
+    },
+    {
+      "id": "n15",
+      "label": "nnnnnnnnnn",
+      "shape": "card",
+      "group": "n14",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字字nnnnin(nnn, nn) / nnnnin(ninn)",
+      "at": [
+        5,
+        4
+      ]
+    },
+    {
+      "id": "n03",
+      "label": "nnninn",
+      "shape": "card",
+      "group": "n13",
+      "color": "orange",
+      "line": 0,
+      "description": "字字字字字字字字 字 字字字字字字00字字字字字字字字nnnn 字00nn字字字字字字字",
+      "at": [
+        6,
+        2
+      ]
+    },
+    {
+      "id": "n18",
+      "label": "字字字字字",
+      "shape": "card",
+      "group": "n13",
+      "color": "purple",
+      "line": 0,
+      "description": "字字字字字字nnin 字字字字字字字字",
+      "at": [
+        6,
+        4
+      ]
+    },
+    {
+      "id": "n06",
+      "label": "字字",
+      "shape": "card",
+      "group": "n13",
+      "color": "purple",
+      "line": 0,
+      "description": "nnnn nnnninn / nnnnnin 字字字",
+      "at": [
+        6,
+        5
+      ]
+    },
+    {
+      "id": "n17",
+      "label": "字字字字字字",
+      "shape": "card",
+      "group": "n20",
+      "color": "gray",
+      "line": 0,
+      "description": "字字字字 nnnnninn字nnnnnnnnnn字nnnninnnnn字",
+      "at": [
+        3,
+        7
+      ]
+    },
+    {
+      "id": "n04",
+      "label": "nnnnnnnnn/ninnnnnn",
+      "shape": "database",
+      "group": "n20",
+      "color": "gray",
+      "line": 0,
+      "description": "nn 字 n++ 字字字字字字字字字",
+      "at": [
+        1,
+        7
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "n22",
+      "label": "nnnnn nnninn字 nnnnnnninn",
+      "color": "blue",
+      "line": 0
+    },
+    {
+      "id": "n00",
+      "label": "字字字字字字字字字 字字字字字",
+      "color": "blue",
+      "line": 0
+    },
+    {
+      "id": "n14",
+      "label": "字字n++ nn::nnnn 字字字字字字字",
+      "color": "blue",
+      "line": 0
+    },
+    {
+      "id": "n13",
+      "label": "字字字",
+      "color": "blue",
+      "line": 0
+    },
+    {
+      "id": "n20",
+      "label": "字字字",
+      "color": "blue",
+      "line": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": "n11",
+      "to": "n09",
+      "label": "nnnnn 字字字字字字字字字字字",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n11",
+      "to": "n01",
+      "label": "nnnnn",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n09",
+      "to": "n08",
+      "label": "nnnnn",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n01",
+      "to": "n10",
+      "label": "nnnnn",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n08",
+      "to": "n02",
+      "label": "nnnnnnnnn字nnnnn",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n10",
+      "to": "n02",
+      "label": "nnnnnnnnn字nnnnn",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n05",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n21",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n12",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n07",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n19",
+      "label": "0 字字字字字字",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n02",
+      "to": "n15",
+      "label": "0 字字 0 字字",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n19",
+      "to": "n03",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n15",
+      "to": "n18",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n15",
+      "to": "n06",
+      "label": "",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n18",
+      "to": "n05",
+      "label": "字字字字字字",
+      "style": "dashed",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n17",
+      "to": "n02",
+      "label": "字字字字",
+      "style": "dashed",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n04",
+      "to": "n11",
+      "label": "",
+      "style": "dashed",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n04",
+      "to": "n05",
+      "label": "",
+      "style": "dashed",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    },
+    {
+      "from": "n16",
+      "to": "n03",
+      "label": "nnnnnn 字字",
+      "style": "solid",
+      "bidirectional": false,
+      "arrow": "open",
+      "line": 0
+    }
+  ],
+  "diagnostics": []
+}

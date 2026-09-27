@@ -1057,9 +1057,10 @@ kbd {
 .diagnostic.warning {
   color:#9a7d3c;
 }
-.diagnostic:hover {
-  text-decoration:underline;
-}
+.diagnostics-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.diagnostic-message { white-space:pre-wrap; overflow-wrap:anywhere; cursor:text; user-select:text; -webkit-user-select:text; min-width:0; flex:1; }
+.diagnostic-jump { border:0; background:none; color:inherit; text-decoration:underline; white-space:nowrap; align-self:flex-start; cursor:pointer; }
+
 .editor-actions {
   display:flex;
   gap:6px;

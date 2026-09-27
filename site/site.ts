@@ -3,7 +3,7 @@ import { renderDiagram } from "../src/focused/render.js";
 import { DIAGRAM_SAMPLES } from "../src/focused/samples.js";
 import { installDiagramIcons, getDiagramIconCatalog } from "../src/focused/icons.js";
 import { getIcon } from "../src/icons.js";
-import type { DiagramRenderResult, DiagramSample } from "../src/focused/types.js";
+import type { DiagramDiagnostic, DiagramRenderResult, DiagramSample } from "../src/focused/types.js";
 import syntaxSource from "../docs/SYNTAX.md?raw";
 import promptInstructions from "../docs/AI_PROMPT_TEMPLATE.md?raw";
 import "./site.css";
@@ -229,6 +229,26 @@ function playground(): void {
   }
   function fit(): void { panX = panY = 0; applyPan(); canvas.scrollLeft = canvas.scrollTop = 0; fitMode = true; if (!result) return; setZoom(Math.min((canvas.clientWidth - 64) / result.layout.width, (canvas.clientHeight - 64) / result.layout.height, 1.3)); }
   function exportState(valid: boolean): void { currentValid = valid; $<HTMLButtonElement>("download-svg").disabled = !valid; $<HTMLButtonElement>("download-png").disabled = !valid; }
+  let diagnosticText = "";
+  function showDiagnostics(items: DiagramDiagnostic[]): void {
+    diagnosticText = items.map(d => `${d.severity === "error" ? "エラー" : "警告"}${d.line ? ` · ${d.line} 行目` : ""}: ${d.message}`).join("\n\n");
+    $("diagnostics").classList.toggle("has-errors", items.some(d => d.severity === "error"));
+    $("diagnostics").innerHTML = items.length
+      ? `<div class="diagnostics-toolbar"><span>エラー・警告 ${items.length} 件</span><button type="button" class="button small" data-copy-diagnostics>コピー</button></div><div id="diagnostics-text">${items.map(d => `<div class="diagnostic ${d.severity}"><span aria-hidden="true">${d.severity === "error" ? "!" : "△"}</span><span class="diagnostic-message">${d.line ? `${d.line} 行目 · ` : ""}${escapeHtml(d.message)}</span>${d.line ? `<button type="button" class="diagnostic-jump" data-line="${d.line}" aria-label="${d.line} 行目へ移動">行へ移動</button>` : ""}</div>`).join("")}</div>`
+      : `<span class="diagnostic-ok">${icon("check")} エラーなし</span>`;
+  }
+  $("diagnostics").addEventListener("click", async event => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-copy-diagnostics]");
+    if (!button) return;
+    try {
+      await navigator.clipboard.writeText(diagnosticText);
+      $("action-status").textContent = "エラー・警告をコピーしました。";
+    } catch {
+      const range = document.createRange(); range.selectNodeContents($("diagnostics-text"));
+      const selection = window.getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
+      $("action-status").textContent = "自動コピーできませんでした。選択した文章をコピーしてください（⌘ / Ctrl + C）。";
+    }
+  });
   let drawVersion = 0;
   async function draw(): Promise<void> {
     const version = ++drawVersion; const snapshotSource = source.value;
@@ -243,18 +263,17 @@ function playground(): void {
       styleSelect.value = model.style ?? "cards";
       styleSelect.disabled = errors.length > 0 || !["system", "layers"].includes(model.kind);
       styleSelect.title = ["system", "layers"].includes(model.kind) ? "ソースにも保存されます" : "アイコン表示はシステム構成図・レイヤースタック図で利用できます";
-      $("diagnostics").classList.toggle("has-errors", errors.length > 0);
-      $("diagnostics").innerHTML = diagnostics.length ? diagnostics.map(d => `<button type="button" class="diagnostic ${d.severity}" data-line="${d.line}"><span>${d.severity === "error" ? "!" : "△"}</span><span>${d.line ? `${d.line} 行目 · ` : ""}${escapeHtml(d.message)}</span></button>`).join("") : `<span class="diagnostic-ok">${icon("check")} エラーなし</span>`;
+      showDiagnostics(diagnostics);
       exportState(errors.length === 0);
       if (errors.length) { $("render-time").textContent = "更新を保留"; $("diagram-summary").textContent = result ? "最後の有効なプレビューを表示中" : "コードを確認してください"; $("preview-empty").hidden = !!result; return; }
       result = renderDiagram(model);
-      if (result.model.diagnostics.length) $("diagnostics").innerHTML = result.model.diagnostics.map(d => `<button type="button" class="diagnostic ${d.severity}" data-line="${d.line}"><span>${d.severity === "error" ? "!" : "△"}</span><span>${d.line ? `${d.line} 行目 · ` : ""}${escapeHtml(d.message)}</span></button>`).join("");
+      showDiagnostics(result.model.diagnostics);
       $("diagram").innerHTML = result.svg; $("preview-empty").hidden = true;
       $("render-time").textContent = `${result.durationMs.toFixed(1)} ms`;
       $("diagram-summary").textContent = `${model.nodes.length} nodes · ${model.edges.length} connections`;
       if (fitMode) fit(); else setZoom(zoom);
     } catch (error) {
-      exportState(false); $("diagnostics").textContent = error instanceof Error ? error.message : "描画できませんでした。コードを確認してください。"; $("diagnostics").classList.add("has-errors"); $("render-time").textContent = "更新を保留"; $("diagram-summary").textContent = result ? "最後の有効なプレビューを表示中" : "コードを確認してください"; $("preview-empty").hidden = !!result;
+      exportState(false); showDiagnostics([{severity:"error",line:0,message:error instanceof Error ? error.message : "描画できませんでした。コードを確認してください。"}]); $("render-time").textContent = "更新を保留"; $("diagram-summary").textContent = result ? "最後の有効なプレビューを表示中" : "コードを確認してください"; $("preview-empty").hidden = !!result;
     }
   }
   function applySample(): void { source.value = loadDraft(); select.value = active.id; $("source-filename").textContent = `${active.id}.mmd`; fitMode = true; source.scrollTop = 0; updateLines(); draw(); }

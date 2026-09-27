@@ -320,15 +320,21 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
   const gapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
-  const gapY = Math.max(screenGap, nesting > 1 ? nesting * (groupHeader + 22) + 40 : 0, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
+  const gapY = Math.max(screenGap, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
   const marginX = Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
-  const pitchX = maxW + gapX, pitchY = maxH + gapY;
+  const pitchX = maxW + gapX;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
   const marginY = titleHeight + Math.max(groupHeader * nesting + 48, screenGap ? gapY / 2 + 32 : 0);
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
-  const yGutters = Array.from({ length: rows + 1 }, (_, i) => marginY - gapY / 2 + i * pitchY);
-  const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: marginY + cells.get(node.id)!.row * pitchY + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
+  // Nested headings need room only where that group actually starts. Reserving
+  // the full nesting depth on every row makes long component columns sparse.
+  const groupStart = new Map(model.groups.map(g => [g.id, Math.min(...model.nodes.filter(n => groupAncestors(model,n.group).includes(g.id)).map(n => cells.get(n.id)!.row))]));
+  const rowGaps = Array.from({length:rows},(_,row) => Math.max(gapY, ...model.groups.map(g => groupAncestors(model,g.id).filter(id => groupStart.get(id) === row).length * groupHeader + 24)));
+  const rowY = [marginY];
+  for (let row=1; row<rows; row++) rowY.push(rowY[row-1]! + maxH + rowGaps[row]!);
+  const yGutters = [...rowY.map((y,row) => y - rowGaps[row]! / 2), rowY[rows-1]! + maxH + gapY/2];
+  const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: rowY[cells.get(node.id)!.row]! + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   for (const node of nodes) if (node.node.shape === 'fork' || node.node.shape === 'join') {
     const cx = node.x + node.width / 2, cy = node.y + node.height / 2, text = junctionText(node.node);
@@ -353,6 +359,14 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, 12)), height: wrapText(group.label, width - 34, 12).length * 17 + 5 });
   }
   for (const group of groupOrder) if (groupBoxes.has(group.id)) groups.push(groupBoxes.get(group.id)!);
+  // Group endpoints retain their identity and attach to the container boundary.
+  // These routing proxies are never rendered as ordinary nodes.
+  for (const {group, ...box} of groups) nodeById.set(group.id, {
+    ...box, node: {id:group.id,label:group.label,group:group.parent,shape:'card',color:group.color,line:group.line},
+  });
+  const containsEndpoint = (container: DiagramLayoutNode, other: DiagramLayoutNode) =>
+    groupBoxes.has(container.node.id) && container !== other && groupAncestors(model, other.node.group).includes(container.node.id);
+  const opposite = (side: Side): Side => ({left:'right',right:'left',top:'bottom',bottom:'top'} as const)[side];
   // Assign ports from geometry, not edge declaration order. Aligned connections
   // keep the center; branches occupy the side nearest their destination.
   const pairCounts = new Map<string, number>();
@@ -361,6 +375,8 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const specs = [...model.edges].sort((a, b) => compareKey(connectionKey(a), connectionKey(b))).flatMap(edge => {
     const a = nodeById.get(edge.from), b = nodeById.get(edge.to); if (!a || !b) return [];
     let [sa, sb] = sidePair(a, b, model.kind === 'layers' ? 'TD' : model.direction);
+    if (containsEndpoint(a,b)) sa = sb = 'right';
+    if (containsEndpoint(b,a)) sa = sb = 'right';
     const pair = `${edge.from}:${edge.to}`, repetition = pairCounts.get(pair) ?? 0; pairCounts.set(pair, repetition + 1);
     if (repetition && a !== b) { if (a.y === b.y) sa = sb = repetition % 2 ? 'bottom' : 'top'; else if (a.x === b.x) sa = sb = repetition % 2 ? 'right' : 'left'; }
     // Synchronization bars connect through their broad faces, leaving their captions clear.
@@ -429,13 +445,24 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const originalOrder = new Map(model.edges.map((edge, i) => [edge, i]));
   // Establish simple aligned routes first, then route branches around them.
   specs.sort((a, b) => Number(aligned(b)) - Number(aligned(a)) || length([a.start, a.end]) - length([b.start, b.end]) || compareKey(edgeKey(a), edgeKey(b)));
-  const edges: DiagramLayoutEdge[] = [], usedLabels: DiagramBox[] = [];
-  const extent = { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: marginY + rows * maxH + (rows - 1) * gapY + 90 };
-  for (const [edgeIndex, { edge, a, b, sa, sb, start, end }] of specs.entries()) {
+  let edges: DiagramLayoutEdge[] = [], usedLabels: DiagramBox[] = [];
+  const extent = { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: rowY[rows-1]! + maxH + 90 };
+  const pathCost = (points: DiagramPoint[]) => {
+    const distance = length(points);
+    const direct = length([points[0]!, points[points.length - 1]!]);
+    // A reduced crossing count must not buy a lap around the whole canvas.
+    const excess = model.kind === 'system' ? Math.max(0, distance - direct - (gapX + gapY) / 2) : 0;
+    return distance + Math.max(0, points.length - 2) * 60 + excess * 3;
+  };
+  const routeOne = (spec: typeof specs[number], edgeIndex: number) => {
+    const { edge, a, b, start, end } = spec;
+    const sa = containsEndpoint(a,b) ? opposite(spec.sa) : spec.sa;
+    const sb = containsEndpoint(b,a) ? opposite(spec.sb) : spec.sb;
     const ca = cells.get(a.node.id)!, cb = cells.get(b.node.id)!;
     const laneSpacing = model.kind === 'screens' ? 16 : 8;
     const lane = edgeIndex === 0 ? 0 : (Math.ceil(edgeIndex / 2) % 4) * (edgeIndex % 2 ? laneSpacing : -laneSpacing);
-    const escape = (point: DiagramPoint, side: Side, cell: Cell): DiagramPoint => side === 'left' || side === 'right'
+    const escape = (point: DiagramPoint, side: Side, cell: Cell | undefined): DiagramPoint => !cell
+      ? {x:point.x+(side==='left'?-16:side==='right'?16:0),y:point.y+(side==='top'?-16:side==='bottom'?16:0)} : side === 'left' || side === 'right'
       ? { x: xGutters[cell.col + (side === 'right' ? 1 : 0)]! + lane, y: point.y }
       : { x: point.x, y: yGutters[cell.row + (side === 'bottom' ? 1 : 0)]! + lane };
     const ea = escape(start, sa, ca), eb = escape(end, sb, cb), ah = sa === 'left' || sa === 'right', bh = sb === 'left' || sb === 'right';
@@ -460,7 +487,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         ? [start, ea, { x: ea.x, y: y + lane }, { x: x + lane, y: y + lane }, { x: x + lane, y: eb.y }, eb, end]
         : [start, ea, { x: x + lane, y: ea.y }, { x: x + lane, y: y + lane }, { x: eb.x, y: y + lane }, eb, end]);
     }
-    if (model.kind === 'activity') {
+    {
       // Long branches must be able to turn before the middle of a shared gap.
       // Otherwise their fixed escape segment can overlap a neighboring arrival
       // and visually turn two unrelated flows into a single connection.
@@ -469,15 +496,18 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         y: p.y + (side === 'top' ? -16 : side === 'bottom' ? 16 : 0),
       });
       const first = stub(start, sa), last = stub(end, sb);
-      for (const y of yGutters) candidates.push([start, first, {x:first.x,y}, {x:last.x,y}, last, end]);
+      const labelClearance = edge.label ? labelSize(edge.label).height / 2 + 18 : 24;
+      const localY = ah && bh ? [Math.min(start.y, end.y) - labelClearance, Math.max(start.y, end.y) + labelClearance] : [];
+      for (const y of [...localY, ...yGutters]) candidates.push([start, first, {x:first.x,y}, {x:last.x,y}, last, end]);
       for (const x of xGutters) candidates.push([start, first, {x,y:first.y}, {x,y:last.y}, last, end]);
     }
-    if (a.screen && b.screen) {
+    {
       // Offer every available track in the gutters instead of cycling four lanes.
       const reach = Math.floor((Math.min(gapX, gapY) / 2 - 16) / 16);
       for (let track = -reach; track <= reach; track++) {
         const offset = track * 16;
-        const exit = (point: DiagramPoint, side: Side, cell: Cell): DiagramPoint => side === 'left' || side === 'right'
+        const exit = (point: DiagramPoint, side: Side, cell: Cell | undefined): DiagramPoint => !cell
+      ? {x:point.x+(side==='left'?-16:side==='right'?16:0),y:point.y+(side==='top'?-16:side==='bottom'?16:0)} : side === 'left' || side === 'right'
           ? { x: Math.max(16, xGutters[cell.col + (side === 'right' ? 1 : 0)]! + offset), y: point.y }
           : { x: point.x, y: Math.max(titleHeight + 16, yGutters[cell.row + (side === 'bottom' ? 1 : 0)]! + offset) };
         const first = exit(start, sa, ca), last = exit(end, sb, cb);
@@ -486,6 +516,12 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
           for (const y of yGutters) {
             const trackY = Math.max(titleHeight + 16, y + offset);
             candidates.push([start, first, {x:first.x,y:trackY}, {x:last.x,y:trackY}, last, end]);
+          }
+        } else if (!ah && !bh) {
+          for (const y of [first.y, last.y]) candidates.push([start, {x:start.x,y}, {x:end.x,y}, end]);
+          for (const x of xGutters) {
+            const trackX = Math.max(16, x + offset);
+            candidates.push([start, first, {x:trackX,y:first.y}, {x:trackX,y:last.y}, last, end]);
           }
         } else candidates.push([start, first, ah ? {x:first.x,y:last.y} : {x:last.x,y:first.y}, last, end]);
       }
@@ -496,7 +532,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       const points = tidy(raw);
       // Collision and label penalties are nonnegative. A candidate whose base
       // cost already loses cannot improve the result; skip its expensive scans.
-      let score = length(points) + (points.length - 2) * 60;
+      let score = pathCost(points);
       if (best && score >= best.score) continue;
       if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;
       if (points.slice(1).some((p, i) => junctionLabels.some(box => segmentIntersectsBox(points[i]!, p, box, 8)))) continue;
@@ -505,8 +541,8 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
-          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += model.kind === 'activity' || a.screen && b.screen ? 1e7 : 2200;
-          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += 240;
+          if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += 1e7;
+          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += model.kind === 'system' ? 1000 : 240;
         }
       }
       let labelBox: DiagramBox | undefined;
@@ -527,13 +563,115 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     if (size && !chosen.labelBox) {
       const y = Math.max(extent.height + size.height, ...usedLabels.map(box => box.y + box.height + size.height + 18));
       const left = extent.width + 28, right = left + size.width + 44;
-      const sourceGutter = ah ? yGutters[ca.row + 1]! + lane : ea.y;
-      const targetGutter = bh ? yGutters[cb.row + 1]! + lane : eb.y;
+      const sourceGutter = ah ? (ca ? yGutters[ca.row + 1]! : a.y + a.height + 16) + lane : ea.y;
+      const targetGutter = bh ? (cb ? yGutters[cb.row + 1]! : b.y + b.height + 16) + lane : eb.y;
       chosen.points = tidy([start, ea, { x: ea.x, y: sourceGutter }, { x: left, y: sourceGutter }, { x: left, y }, { x: right, y }, { x: right, y: targetGutter }, { x: eb.x, y: targetGutter }, eb, end]);
       chosen.labelBox = { x: left + 22, y: y - size.height / 2, ...size };
     }
     if (chosen.labelBox) usedLabels.push(chosen.labelBox);
     edges.push({ edge, points: chosen.points, ...(chosen.labelBox ? { labelBox: chosen.labelBox } : {}) });
+  };
+  const routeAll = (order: typeof specs) => {
+    edges = []; usedLabels = [];
+    order.forEach(routeOne);
+  };
+  routeAll(specs);
+  // Greedy routing is order-sensitive. Compare a bounded set of whole-diagram
+  // solutions, rather than fixing every earlier route as an immutable obstacle.
+  const solutionCost = () => {
+    let cost = 0;
+    for (const [i, e] of edges.entries()) {
+      cost += pathCost(e.points);
+      for (let k = 1; k < e.points.length; k++) {
+        const a = e.points[k - 1]!, b = e.points[k]!;
+        for (const n of nodes) {
+          if (n.node.id === e.edge.from && k === 1 || n.node.id === e.edge.to && k === e.points.length - 1) continue;
+          if (segmentIntersectsBox(a,b,n,-1)) cost += 1e9;
+        }
+        for (const other of edges) if (other !== e && other.labelBox && segmentIntersectsBox(a, b, other.labelBox, 4)) cost += 10000;
+        for (const other of edges.slice(i + 1)) {
+          for (let j = 1; j < other.points.length; j++) {
+            const c = other.points[j - 1]!, d = other.points[j]!;
+            if (a.x === b.x && c.x === d.x && a.x === c.x && Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y)) > Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y)) || a.y === b.y && c.y === d.y && a.y === c.y && Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x)) > Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x))) cost += 1e7;
+            if (a.x === b.x && c.y === d.y && a.x > Math.min(c.x,d.x) && a.x < Math.max(c.x,d.x) && c.y > Math.min(a.y,b.y) && c.y < Math.max(a.y,b.y) || a.y === b.y && c.x === d.x && c.x > Math.min(a.x,b.x) && c.x < Math.max(a.x,b.x) && a.y > Math.min(c.y,d.y) && a.y < Math.max(c.y,d.y)) cost += 1000;
+          }
+        }
+      }
+    }
+    return cost;
+  };
+  if (model.kind === 'system' && specs.length > 8 && specs.length <= 60) {
+    let best = { edges, usedLabels, cost: solutionCost() };
+    const orders = [
+      [...specs].reverse(),
+      [...specs].sort((a,b) => length([b.start,b.end]) - length([a.start,a.end]) || compareKey(edgeKey(a),edgeKey(b))),
+      [...specs].sort((a,b) => (degree.get(b.a.node.id)! + degree.get(b.b.node.id)!) - (degree.get(a.a.node.id)! + degree.get(a.b.node.id)!) || compareKey(edgeKey(a),edgeKey(b))),
+      [...specs].sort((a,b) => a.start.y - b.start.y || a.end.y - b.end.y || compareKey(edgeKey(a),edgeKey(b))),
+    ];
+    for (const order of orders) {
+      routeAll(order);
+      const cost = solutionCost();
+      if (cost < best.cost) best = { edges, usedLabels, cost };
+    }
+    edges = best.edges; usedLabels = best.usedLabels;
+    // Rip up one route at a time, retaining the other lines and their labels.
+    // Accept only whole-diagram improvements; never trade a new overlap for length.
+    for (let pass = 0; pass < 2; pass++) {
+      let improved = false;
+      for (const [i, spec] of specs.entries()) {
+        const oldEdges = edges, oldLabels = usedLabels;
+        edges = edges.filter(e => e.edge !== spec.edge);
+        usedLabels = edges.flatMap(e => e.labelBox ? [e.labelBox] : []);
+        const fixedEdges = edges, fixedLabels = usedLabels;
+        const freePort = (node: DiagramLayoutNode, side: Side) => {
+          const occupied = fixedEdges.flatMap(e => [
+            ...(e.edge.from === node.node.id ? [e.points[0]!] : []),
+            ...(e.edge.to === node.node.id ? [e.points[e.points.length - 1]!] : []),
+          ]);
+          const limit = node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+          for (const offset of [0, -16, 16, -32, 32, -48, 48]) {
+            if (Math.abs(offset) > limit) continue;
+            const p = port(node, side, offset);
+            if (occupied.every(q => Math.abs(q.x-p.x)+Math.abs(q.y-p.y) >= 12)) return p;
+          }
+          return undefined;
+        };
+        const variants = [spec];
+        if (!spec.a.junction && !spec.b.junction && spec.a !== spec.b) {
+          const sides: Side[] = ['left','right','top','bottom'];
+          for (const side of sides) {
+            if (side !== spec.sa) {
+              const start = freePort(spec.a, side);
+              if (start) variants.push({...spec, sa:side, start});
+            }
+            if (side !== spec.sb) {
+              const end = freePort(spec.b, side);
+              if (end) variants.push({...spec, sb:side, end});
+            }
+          }
+        }
+        if (spec.a !== spec.b && !spec.a.junction && !spec.b.junction) {
+          const dx = spec.b.x + spec.b.width / 2 - spec.a.x - spec.a.width / 2;
+          const dy = spec.b.y + spec.b.height / 2 - spec.a.y - spec.a.height / 2;
+          const pairs: [Side, Side][] = [dx >= 0 ? ['right','left'] : ['left','right'], dy >= 0 ? ['bottom','top'] : ['top','bottom'], ['right','right'], ['left','left'], ['top','top'], ['bottom','bottom']];
+          for (const [sa,sb] of pairs) {
+            const start = sa === spec.sa ? spec.start : freePort(spec.a,sa);
+            const end = sb === spec.sb ? spec.end : freePort(spec.b,sb);
+            if (start && end) variants.push({...spec,sa,sb,start,end});
+          }
+        }
+        let local = {edges: oldEdges, usedLabels: oldLabels, cost: best.cost};
+        for (const variant of variants) {
+          edges = [...fixedEdges]; usedLabels = [...fixedLabels];
+          routeOne(variant, i);
+          const cost = solutionCost();
+          if (cost < local.cost) local = {edges, usedLabels, cost};
+        }
+        edges = local.edges; usedLabels = local.usedLabels;
+        if (local.cost < best.cost) { best = local; improved = true; }
+      }
+      if (!improved) break;
+    }
   }
   const width = Math.ceil(Math.max(extent.width, ...groups.map(group => group.x + group.width + 24), ...edges.flatMap(e => e.points.map(p => p.x + 48)), ...usedLabels.map(b => b.x + b.width + 30)));
   const height = Math.ceil(Math.max(extent.height, ...groups.map(group => group.y + group.height + 24), ...edges.flatMap(e => e.points.map(p => p.y + 48)), ...usedLabels.map(b => b.y + b.height + 30)));
