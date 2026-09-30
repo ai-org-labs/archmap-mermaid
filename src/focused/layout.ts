@@ -587,9 +587,12 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       const label = labelSize(spec.edge.label);
       return Math.ceil(((side === 'left' || side === 'right' ? label.height : label.width) / 2 + 12) / 8) * 8;
     }));
-    const spacing = node.junction ? 2 * limit / Math.max(1, requests.length - 1) : Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
-    // Anchor an aligned edge precisely. Otherwise distribute the fan symmetrically.
-    const anchor = !node.junction && Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
+    // Synchronization bars also preserve an aligned branch at their center.
+    // Space the remaining ports within the bar rather than shifting that branch.
+    const anchor = Math.abs(requests[pivot]!.delta) < 1 ? pivot : (requests.length - 1) / 2;
+    const spacing = node.junction
+      ? limit / Math.max(1, anchor, requests.length - anchor - 1)
+      : Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
     requests.forEach((request, i) => {
       const point = port(node, side, (i - anchor) * spacing);
       if (node.screen && (side === 'left' || side === 'right')) {

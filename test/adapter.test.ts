@@ -110,3 +110,22 @@ it.each(['TB','LR'])('keeps the activity bypass separate from parallel branches 
     }
   }
 });
+
+
+it.each(['TB','BT','LR','RL'])('keeps aligned activity fork/join branches straight (%s)',async direction=>{
+  const source=DIAGRAM_SAMPLES.find(s=>s.id==='activity')!.source.replace('direction TB',`direction ${direction}`);
+  const {layout}=renderDiagram(await parseDiagram(source));
+  for(const [from,to] of [['parallel','payment'],['payment','complete']]) {
+    const edge=layout.edges.find(e=>e.edge.from===from&&e.edge.to===to)!;
+    expect(edge.points,`${from} -> ${to}`).toHaveLength(2);
+    const [a,b]=edge.points;
+    expect(direction==='TB'||direction==='BT'?a.x===b.x:a.y===b.y).toBe(true);
+  }
+  for(const node of layout.nodes.filter(n=>n.junction)) {
+    const bar=node.junction!;
+    for(const edge of layout.edges) {
+      const p=edge.edge.from===node.node.id?edge.points[0]:edge.edge.to===node.node.id?edge.points[edge.points.length-1]:undefined;
+      if(p) {expect(p.x).toBeGreaterThanOrEqual(bar.x);expect(p.x).toBeLessThanOrEqual(bar.x+bar.width);expect(p.y).toBeGreaterThanOrEqual(bar.y);expect(p.y).toBeLessThanOrEqual(bar.y+bar.height);}
+    }
+  }
+});
