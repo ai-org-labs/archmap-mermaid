@@ -1,3 +1,4 @@
+import {prepareDiagramImages} from '../src/focused/images.js';
 import { parseDiagram } from "../src/focused/parser.js";
 import { renderDiagram } from "../src/focused/render.js";
 import { DIAGRAM_SAMPLES } from "../src/focused/samples.js";
@@ -57,7 +58,7 @@ function home(): void {
 }
 
 function gallery(): void {
-  document.body.innerHTML = `${nav()}<main id="main" class="wrap examples-main"><header class="page-heading"><p class="eyebrow">THE EXAMPLE COLLECTION</p><h1>5 つの視点。<br><span>ここから、あなたの設計へ。</span></h1><p>動くサンプルを開いて、テキストを編集してみましょう。</p></header><div class="example-grid">${DIAGRAM_SAMPLES.map((s, index) => `<a class="example-card" href="${route(`playground/?sample=${s.id}`)}"><div class="example-preview dot-grid">${diagramSvg(s)}</div><div class="example-copy"><span class="eyebrow">0${index + 1} / ${s.id.toUpperCase()}</span><h2>${escapeHtml(s.title)} ${icon("arrow")}</h2><p>${escapeHtml(s.subtitle)}</p></div></a>`).join("")}</div></main>${footer()}`;
+  document.body.innerHTML = `${nav()}<main id="main" class="wrap examples-main"><header class="page-heading"><p class="eyebrow">THE EXAMPLE COLLECTION</p><h1>7 つの視点。<br><span>ここから、あなたの設計へ。</span></h1><p>動くサンプルを開いて、テキストを編集してみましょう。</p></header><div class="example-grid">${DIAGRAM_SAMPLES.map((s, index) => `<a class="example-card" href="${route(`playground/?sample=${s.id}`)}"><div class="example-preview dot-grid">${diagramSvg(s)}</div><div class="example-copy"><span class="eyebrow">0${index + 1} / ${s.id.toUpperCase()}</span><h2>${escapeHtml(s.title)} ${icon("arrow")}</h2><p>${escapeHtml(s.subtitle)}</p></div></a>`).join("")}</div></main>${footer()}`;
 }
 
 function inlineMarkdown(text: string): string {
@@ -126,7 +127,7 @@ function mountCatalog(): void {
 // Include the canonical reference so the copied prompt follows syntax updates.
 const authoringPrompt = `${promptInstructions.trim()}\n\n${syntaxSource.trim()}\n`;
 function promptMarkup(): string {
-  return `<section id="ai-prompt" class="prompt-card" aria-labelledby="prompt-heading"><p class="eyebrow">DESCRIBE IT. GENERATE IT.</p><h2 id="prompt-heading">AI 用プロンプトテンプレート</h2><p>テンプレートをコピーして、ChatGPT などの AI に貼り付けてください。「作成する図の要件」を書き換えると、対応範囲内のMermaidコードを依頼できます。5 種類の図のルールと、下記の構文リファレンス全文を含みます。</p><div class="prompt-actions"><button type="button" id="copy-prompt" class="button primary">プロンプトをコピー</button><button type="button" id="download-prompt" class="button small">${icon("download")} .txt を保存</button></div><p id="prompt-status" class="prompt-status" role="status" aria-live="polite"></p><details id="prompt-details"><summary>テンプレートの全文を見る</summary><label class="prompt-label" for="prompt-source">AI に渡すプロンプト（要件を書き換えて利用）</label><textarea id="prompt-source" class="prompt-source" readonly spellcheck="false">${escapeHtml(authoringPrompt)}</textarea></details></section>`;
+  return `<section id="ai-prompt" class="prompt-card" aria-labelledby="prompt-heading"><p class="eyebrow">DESCRIBE IT. GENERATE IT.</p><h2 id="prompt-heading">AI 用プロンプトテンプレート</h2><p>テンプレートをコピーして、ChatGPT などの AI に貼り付けてください。「作成する図の要件」を書き換えると、対応範囲内のMermaidコードを依頼できます。7 種類の図のルールと、下記の構文リファレンス全文を含みます。</p><div class="prompt-actions"><button type="button" id="copy-prompt" class="button primary">プロンプトをコピー</button><button type="button" id="download-prompt" class="button small">${icon("download")} .txt を保存</button></div><p id="prompt-status" class="prompt-status" role="status" aria-live="polite"></p><details id="prompt-details"><summary>テンプレートの全文を見る</summary><label class="prompt-label" for="prompt-source">AI に渡すプロンプト（要件を書き換えて利用）</label><textarea id="prompt-source" class="prompt-source" readonly spellcheck="false">${escapeHtml(authoringPrompt)}</textarea></details></section>`;
 }
 function mountPrompt(): void {
   $("copy-prompt").addEventListener("click", async () => {
@@ -266,7 +267,9 @@ function playground(): void {
       showDiagnostics(diagnostics);
       exportState(errors.length === 0);
       if (errors.length) { $("render-time").textContent = "更新を保留"; $("diagram-summary").textContent = result ? "最後の有効なプレビューを表示中" : "コードを確認してください"; $("preview-empty").hidden = !!result; return; }
-      result = renderDiagram(model);
+      const prepared=await prepareDiagramImages(model);
+      if(version !== drawVersion || source.value !== snapshotSource)return;
+      result = renderDiagram(prepared);
       showDiagnostics(result.model.diagnostics);
       $("diagram").innerHTML = result.svg; $("preview-empty").hidden = true;
       $("render-time").textContent = `${result.durationMs.toFixed(1)} ms`;
@@ -341,7 +344,7 @@ installDiagramIcons();
 if(page === "home" || page === "examples") {
   for(const sample of DIAGRAM_SAMPLES) {
     const model = await parseDiagram(sample.source);
-    previews.set(sample.id, model.diagnostics.some(d=>d.severity==='error') ? '<p>サンプルを読み込めません</p>' : renderDiagram(model).svg);
+    previews.set(sample.id, model.diagnostics.some(d=>d.severity==='error') ? '<p>サンプルを読み込めません</p>' : renderDiagram(await prepareDiagramImages(model)).svg);
   }
 }
 if (page === "playground") playground();

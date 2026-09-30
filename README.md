@@ -10,14 +10,14 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## 機能
 
-システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティの5種類。
-入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 の対応サブセットです。
+システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケースの7種類。
+入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta の対応サブセットです。
 独自DSLは採用せず、必要な表示設定だけ `%% archmap: JSON` コメントに記述します。
 互換範囲は [docs/SYNTAX.md](docs/SYNTAX.md) に列挙しています。
 
 エディタ折りたたみ、パン、カーソル中心ズーム、Fit、SVG / PNG / .mmd書き出し、
 ローカル下書き、AI用プロンプト、検索可能なアイコン一覧と全件テキスト保存を搭載。
-オンライン版もブラウザー内だけで処理します。GitHub Pagesは静的ファイル配信です。
+オンライン版もブラウザー内で処理します。画像URLを指定した場合は配信元から画像を読み込みます。GitHub Pagesは静的ファイル配信です。
 オフライン版はパーサー・アイコン・ドキュメントを含む単一HTMLです。
 
 ## 開発

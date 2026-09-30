@@ -1,3 +1,5 @@
+import {prepareDiagramImages} from './focused/images.js';
+export {prepareDiagramImages} from './focused/images.js';
 import { parseDiagram } from './focused/parser.js';
 import { renderDiagram } from './focused/render.js';
 import { installDiagramIcons } from './focused/icons.js';
@@ -12,5 +14,5 @@ export async function renderMermaid(source: string) {
   const model = await parseDiagram(source);
   const errors = model.diagnostics.filter(d => d.severity === 'error');
   if(errors.length) throw new Error(errors.map(d=>d.message).join('\n'));
-  return renderDiagram(model);
+  return renderDiagram(await prepareDiagramImages(model));
 }

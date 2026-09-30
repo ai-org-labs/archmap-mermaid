@@ -8,7 +8,7 @@
 
 出力ルール:
 1. Mermaidコードブロック1つで出力する。
-2. flowchart / sequenceDiagram / stateDiagram-v2 を使用する。
+2. flowchart / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta を使用する。
 3. 関係・接続は標準Mermaidで記述する。架空の命令を作らない。
 4. レイヤー・画面遷移・アクティビティの表示は %% archmap: の view で選ぶ。
 5. 補助設定は1文書1行の正しいJSON。不要な場合は省略する。

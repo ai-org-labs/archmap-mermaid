@@ -1,3 +1,4 @@
+import {imageSize} from './images.js';
 import { groupAncestors, orderedGroups } from './groups.js';
 import type { DiagramBox, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
 
@@ -46,11 +47,14 @@ function iconNodeSize(node: DiagramNode) {
   return { width: 160, height: 62 + text.title.length * 21 + (text.description.length ? 6 + text.description.length * 17 : 0) + 6 };
 }
 function screenContent(node: DiagramNode, model: DiagramModel): DiagramScreenContent {
-  const width = node.shape === 'modal' ? 240 : 280;
+  const width = node.image?Math.max(280,imageSize(node).width+40):node.shape === 'modal' ? 240 : 280;
   const title = wrapText(node.label, width - (node.icon ? 76 : 40));
   const description = node.description ? wrapText(node.description, width - 40, BODY_SIZE) : [];
   const incoming = model.edges.filter(edge => edge.to === node.id && !edge.bidirectional).length;
-  const headerHeight = Math.max(27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16, 51 + Math.max(0, incoming - 1) * 14);
+  let headerHeight = Math.max(27 + 18 + Math.max(24, title.length * 21) + (description.length ? 8 + description.length * 17 : 0) + 16, 51 + Math.max(0, incoming - 1) * 14);
+  const image=node.image?{x:(width-imageSize(node).width)/2,y:node.image.position==='t'?headerHeight:43,...imageSize(node)}:undefined;
+  const titleY=node.image&&node.image.position==='b'?61+image!.height+16:61;
+  if(image)headerHeight+=image.height+16;
   let top = headerHeight + 26;
   const items: Array<{ edge?: DiagramModel['edges'][number]; label: string; line: number; kind?: string; detail?: string }> = model.edges.filter(edge => !edge.actionLine && (edge.from === node.id || edge.bidirectional && edge.to === node.id)).map(edge => {
     const destination = model.nodes.find(n => n.id === (edge.from === node.id ? edge.to : edge.from));
@@ -68,9 +72,17 @@ function screenContent(node: DiagramNode, model: DiagramModel): DiagramScreenCon
     const action = { ...item, detail, lines, top, height }; top += height;
     return action;
   });
-  return { title, description, headerHeight, actions, height: actions.length ? top + 10 : headerHeight + 46 };
+  return { title, description, image, titleY, headerHeight, actions, height: actions.length ? top + 10 : headerHeight + 46 };
+}
+export function entityContent(node: DiagramNode) {
+  const width=340, title=wrapText(node.label,width-32,15), header=24+title.length*21;
+  const rows=(node.attributes??[]).map(a=>({a,names:wrapText(a.name,146,12),types:wrapText(a.type,94,11),comments:a.comment?wrapText(a.comment,width-32,11):[]}));
+  const heights=rows.map(r=>Math.max(r.names.length*17,r.types.length*17,17)+14+(r.comments.length?r.comments.length*15+4:0));
+  return {width,title,header,rows,heights,height:header+(rows.length?heights.reduce((a,b)=>a+b,0):38)};
 }
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
+  if(node.image) {const im=imageSize(node),width=Math.max(180,im.width+40);return {width,height:im.height+48+wrapText(node.label,width-40).length*21+(node.description?wrapText(node.description,width-40,BODY_SIZE).length*17+8:0)};}
+  if(node.attributes) {const e=entityContent(node);return {width:e.width,height:e.height};}
   const width = kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
   const text = nodeText(node, kind, width);
   const contentHeight = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
@@ -137,7 +149,7 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
     while (occupied.has(`${col},${row}`)) row++;
     occupied.add(`${col},${row}`); cells.set(node.id, { col, row });
   };
-  const depth = ranks(model);
+  const depth = ranks(model.kind==='usecase'?{...model,edges:model.edges.map(e=>e.relationship==='extend'?{...e,from:e.to,to:e.from}:e)}:model);
   if (model.kind === 'layers') {
     const ungroupedRanks = [...new Set(model.nodes.filter(n => !n.group).map(n => depth.get(n.id) ?? 0))].sort((a, b) => a - b);
     const layerKeys = [...orderedGroups(model).filter(g => model.nodes.some(n => n.group === g.id)).map(g => g.id), ...ungroupedRanks.map(rank => `rank:${rank}`)];
@@ -150,6 +162,46 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
   }
   // Manual coordinates reserve their cells first. Automatic nodes never cover them.
   for (const node of model.nodes) if (node.at) reserve(node, node.at[0] - 1, node.at[1] - 1);
+  if(model.kind==='usecase') {
+    let band=0;
+    for(const group of [...orderedGroups(model).map(g=>g.id),'']) {
+      const counts=new Map<number,number>();
+      for(const n of model.nodes.filter(n=>(n.role!=='actor'||!!n.group)&&(n.group??'')===group)) if(!cells.has(n.id)) {
+        const shift=model.nodes.some(n=>n.group===group&&n.role==='actor')?1:0;
+        const rank=n.role==='actor'?1:Math.max(1,(depth.get(n.id)??1))+shift,index=band+(counts.get(rank)??0);
+        counts.set(rank,(counts.get(rank)??0)+1);
+        reserve(n,model.direction==='LR'?rank:index,model.direction==='LR'?index:rank);
+      }
+      band+=Math.max(0,...counts.values());
+    }
+    for(const n of model.nodes.filter(n=>n.role==='actor'&&!n.group)) if(!cells.has(n.id)) {
+      const neighbors=model.edges.filter(e=>e.from===n.id||e.to===n.id).map(e=>cells.get(e.from===n.id?e.to:e.from)).filter((c):c is Cell=>!!c);
+      const index=neighbors.length?Math.min(...neighbors.map(c=>model.direction==='LR'?c.row:c.col)):0;
+      // Reserve in the transverse direction so actors never drift into a system.
+      let slot=index;
+      while(occupied.has(model.direction==='LR'?`0,${slot}`:`${slot},0`))slot++;
+      reserve(n,model.direction==='LR'?0:slot,model.direction==='LR'?slot:0);
+    }
+    // Manual coordinates preserve relative placement within a boundary. If
+    // boundaries overlap, move the whole later boundary rather than nest it.
+    const packed: Array<{left:number;right:number;top:number;bottom:number}> = [];
+    for(const group of orderedGroups(model)) {
+      const members=model.nodes.filter(n=>n.group===group.id);
+      if(!members.length)continue;
+      const bound=()=>({left:Math.min(...members.map(n=>cells.get(n.id)!.col)),right:Math.max(...members.map(n=>cells.get(n.id)!.col)),top:Math.min(...members.map(n=>cells.get(n.id)!.row)),bottom:Math.max(...members.map(n=>cells.get(n.id)!.row))});
+      const others=[...packed,...model.nodes.filter(n=>!n.group).map(n=>{const c=cells.get(n.id)!;return {left:c.col,right:c.col,top:c.row,bottom:c.row};})];
+      let box=bound();
+      for(let tries=0;tries<=others.length;tries++) {
+        const hits=others.filter(b=>box.left<=b.right&&box.right>=b.left&&box.top<=b.bottom&&box.bottom>=b.top);
+        if(!hits.length)break;
+        const shift=model.direction==='LR'?Math.max(...hits.map(b=>b.bottom))+1-box.top:Math.max(...hits.map(b=>b.right))+1-box.left;
+        for(const n of members) {const c=cells.get(n.id)!;if(model.direction==='LR')c.row+=shift;else c.col+=shift;}
+        box=bound();
+      }
+      packed.push(box);
+    }
+    return cells;
+  }
   let band = 0;
   const buckets = [...orderedGroups(model).map(g => g.id), ''];
   for (const group of buckets) {
@@ -299,8 +351,17 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
 
 export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   if (model.kind === 'sequence') return sequenceLayout(model);
+  // Give empty leaf groups a layout-only footprint; never add fake model nodes.
+  const empty=model.groups.filter(g=>!model.nodes.some(n=>n.group===g.id)&&!model.groups.some(child=>child.parent===g.id));
+  if(empty.length) {
+    const ids=new Set([...model.nodes.map(n=>n.id),...model.groups.map(g=>g.id)]), ghosts=new Set<string>();
+    const placeholders=empty.map((g,i)=>{let id=`__empty_group_${i}`;while(ids.has(id))id+='_';ids.add(id);ghosts.add(id);return {id,label:'',group:g.id,shape:'card' as const,color:g.color,line:0};});
+    const layout=computeDiagramLayout({...model,nodes:[...model.nodes,...placeholders]});
+    return {...layout,nodes:layout.nodes.filter(n=>!ghosts.has(n.node.id))};
+  }
+
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
-  const usesIcon = (node: DiagramNode) => iconStyle && (node.shape === 'card' || node.shape === 'database');
+  const usesIcon = (node: DiagramNode) => !node.image && iconStyle && (node.shape === 'card' || node.shape === 'database');
   const cells = placeCells(model), sizes = model.nodes.map(node => {
     if (node.shape === 'fork' || node.shape === 'join') {
       const text = junctionText(node);
@@ -308,7 +369,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     }
     if (model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal')) {
       const screen = screenContent(node, model);
-      return { width: node.shape === 'modal' ? 240 : 280, height: screen.height, screen };
+      return { width: node.image?Math.max(280,imageSize(node).width+40):node.shape === 'modal' ? 240 : 280, height: screen.height, screen };
     }
     return usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind);
   });
@@ -451,7 +512,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const distance = length(points);
     const direct = length([points[0]!, points[points.length - 1]!]);
     // A reduced crossing count must not buy a lap around the whole canvas.
-    const excess = model.kind === 'system' ? Math.max(0, distance - direct - (gapX + gapY) / 2) : 0;
+    const excess = ['system','er','usecase'].includes(model.kind) ? Math.max(0, distance - direct - (gapX + gapY) / 2) : 0;
     return distance + Math.max(0, points.length - 2) * 60 + excess * 3;
   };
   const routeOne = (spec: typeof specs[number], edgeIndex: number) => {
@@ -459,6 +520,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     const sa = containsEndpoint(a,b) ? opposite(spec.sa) : spec.sa;
     const sb = containsEndpoint(b,a) ? opposite(spec.sb) : spec.sb;
     const ca = cells.get(a.node.id)!, cb = cells.get(b.node.id)!;
+    const markerClearance = edge.sourceMarker || edge.targetMarker ? 28 : 16;
     const laneSpacing = model.kind === 'screens' ? 16 : 8;
     const lane = edgeIndex === 0 ? 0 : (Math.ceil(edgeIndex / 2) % 4) * (edgeIndex % 2 ? laneSpacing : -laneSpacing);
     const escape = (point: DiagramPoint, side: Side, cell: Cell | undefined): DiagramPoint => !cell
@@ -492,8 +554,8 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       // Otherwise their fixed escape segment can overlap a neighboring arrival
       // and visually turn two unrelated flows into a single connection.
       const stub = (p: DiagramPoint, side: Side): DiagramPoint => ({
-        x: p.x + (side === 'left' ? -16 : side === 'right' ? 16 : 0),
-        y: p.y + (side === 'top' ? -16 : side === 'bottom' ? 16 : 0),
+        x: p.x + (side === 'left' ? -markerClearance : side === 'right' ? markerClearance : 0),
+        y: p.y + (side === 'top' ? -markerClearance : side === 'bottom' ? markerClearance : 0),
       });
       const first = stub(start, sa), last = stub(end, sb);
       const labelClearance = edge.label ? labelSize(edge.label).height / 2 + 18 : 24;
@@ -535,6 +597,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       let score = pathCost(points);
       if (best && score >= best.score) continue;
       if (points.length < 2 || !outward(start, points[1]!, sa) || !outward(end, points[points.length - 2]!, sb)) continue;
+      if(edge.sourceMarker&&length(points.slice(0,2))<28 || edge.targetMarker&&length(points.slice(-2))<28)continue;
       if (points.slice(1).some((p, i) => junctionLabels.some(box => segmentIntersectsBox(points[i]!, p, box, 8)))) continue;
       if (points.slice(1).some((p, i) => nodes.some(n => !(n === a && i === 0) && !(n === b && i === points.length - 2) && segmentIntersectsBox(points[i]!, p, n, -1)))) continue;
       for (let i = 1; i < points.length; i++) {
@@ -542,7 +605,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
           if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += 1e7;
-          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += model.kind === 'system' ? 1000 : 240;
+          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += ['system','er','usecase'].includes(model.kind) ? 1000 : 240;
         }
       }
       let labelBox: DiagramBox | undefined;
@@ -600,7 +663,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     }
     return cost;
   };
-  if (model.kind === 'system' && specs.length > 8 && specs.length <= 60) {
+  if (['system','er','usecase'].includes(model.kind) && specs.length > (model.kind==='system'?8:1) && specs.length <= 60) {
     let best = { edges, usedLabels, cost: solutionCost() };
     const orders = [
       [...specs].reverse(),

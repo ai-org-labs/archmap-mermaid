@@ -1,12 +1,15 @@
 /** The deliberately small ArchMap diagram model. Positions use a one-based grid. */
-export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity"] as const;
+export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase"] as const;
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
-export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join" | "modal";
+export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join" | "modal" | "note";
 export interface DiagramNode {
   id: string;
   label: string;
+  image?: {src:string; width?:number; height?:number; position:"t"|"b"; constraint:"on"|"off"; naturalWidth?:number; naturalHeight?:number; data?:string; error?:boolean};
+  attributes?: Array<{name:string;type:string;keys:string[];comment:string}>;
+  role?: "actor" | "usecase";
   description?: string;
   icon?: string;
   group?: string;
@@ -17,7 +20,7 @@ export interface DiagramNode {
 }
 export interface DiagramGroup { id: string; label: string; color: DiagramColor; line: number; parent?: string }
 export interface DiagramScreenAction { node: string; label: string; to?: string; state?: string; effect?: string; when?: string; close?: boolean; line: number }
-export interface DiagramEdge { arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
+export interface DiagramEdge { relationship?: "association" | "include" | "extend" | "generalization"; sourceMarker?: string; targetMarker?: string; arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { action: "alt" | "opt" | "loop" | "par" | "else" | "and" | "end"; label: string; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }
 export interface DiagramDiagnostic { line: number; severity: "error" | "warning"; message: string }
@@ -39,6 +42,8 @@ export interface DiagramPoint { x: number; y: number }
 export interface DiagramScreenContent {
   title: string[];
   description: string[];
+  image?: DiagramBox;
+  titleY?: number;
   headerHeight: number;
   height: number;
   actions: Array<{ edge?: DiagramEdge; line: number; kind?: string; detail?: string[]; label: string; lines: string[]; top: number; height: number }>;

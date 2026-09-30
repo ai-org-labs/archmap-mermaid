@@ -6,6 +6,8 @@ ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自
 
 | 用途 | Mermaidの宣言 | 補助設定の view |
 | --- | --- | --- |
+| ER図 | `erDiagram` | 不要 |
+| ユースケース図 | `usecase-beta` | 不要 |
 | システム構成図 | `flowchart LR` | `system`（既定） |
 | レイヤースタック図 | `flowchart TB` | `layers` |
 | シーケンス図 | `sequenceDiagram` | 不要 |
@@ -27,7 +29,7 @@ flowchart LR
 
 `graph` も利用できます。方向は `LR`、`TB`、`TD`。四角形・角丸・円・スタジアム・二重円・データベース・ひし形に対応します。ArchMapのカード、開始・終了、データベース、分岐の形へ対応付けます。ノードの暗黙宣言、ラベル付き接続、自己接続、複数接続、実線・破線・双方向・矢印なしの線を利用できます。
 
-`A@{ icon: "aws:lambda", label: "Lambda" }` のアイコン属性にも対応します。キーの `aws:` / `gcp:` / `azure:` は内部で `/` に変換します。組み込まれていないアイコンや外部画像はエラーになります。サービス名の別名はアイコン一覧で確認してください。
+`A@{ icon: "aws:lambda", label: "Lambda" }` のアイコン属性にも対応します。キーの `aws:` / `gcp:` / `azure:` は内部で `/` に変換します。組み込まれていないアイコンはエラーになります。画像は以下の標準img構文で指定します。サービス名の別名はアイコン一覧で確認してください。
 
 ## グループと入れ子
 
@@ -109,6 +111,25 @@ stateDiagram-v2
 
 画面間の遷移は必ずMermaidの矢印で記述します。補助設定の actions に遷移先は書きません。`state`、`effect`、`close` は排他的です。`when` に表示上の条件を追加できます。`close: true` はモーダルだけで使用できます。操作名の `label` と所有画面の `node` は必須です。
 
+## 画像付きノード・画面遷移
+
+標準Mermaidの `img` 属性に対応します。独自の画像構文は不要です。通常のflowchartでも利用でき、画面遷移ビューでは画像と操作一覧を1枚のカードに表示します。
+
+```mermaid
+flowchart LR
+  home@{ img: "https://example.com/home.png", label: "ホーム", pos: "t", h: 240, constraint: "on" }
+  detail@{ img: "https://example.com/detail.png", label: "商品詳細", pos: "t", h: 240, constraint: "on" }
+  home -->|商品を選ぶ| detail
+```
+
+既存の画面遷移表示を使う場合は `%% archmap: {"view":"screens"}` を先頭に指定します。画像の指定そのものは標準構文です。`stateDiagram-v2` に画像構文を追加するものではありません。
+
+`w` / `h` は幅・高さ、`pos` はラベル位置（t=上、b=下）、`constraint: "on"` は元画像の比率を保って高さから幅を求めます。offでは幅と高さを独立に扱います。未指定寸法には読み込んだ画像の寸法を使います。
+
+PNG / JPEG / WebP / GIF / SVGのURLや画像data URLを読み込み、静止画像としてSVGに埋め込みます。これにより書き出したSVG・PNGに画像が残ります。アニメーションは保持しません。外部URLには画像配信元のCORS許可が必要です。読込失敗時は警告と代替枠を表示します。画像URLを使うと画像配信元への通信が発生します。オフラインで使う場合はdata URLを使ってください。
+
+ブラウザーAPIの `renderMermaid` は画像読込と埋め込みまで行います。低レベルの同期 `renderDiagram` を直接使う場合は、先に `await prepareDiagramImages(model)` を呼んでください。
+
 ## アクティビティと並列分岐
 
 ```mermaid
@@ -128,6 +149,50 @@ stateDiagram-v2
 
 開始・終了は `[*]`、判断は `<<choice>>`、並列開始・合流は `<<fork>>` / `<<join>>` を使用します。状態図の複合状態はグループに変換します。同時状態の `--` 区切りは未対応です。
 
+## ER図
+
+`erDiagram` を使います。エンティティは属性表として描き、PK / FK / UK、属性名、型、コメントを分けて表示します。長い属性名・型・コメントは折り返します。属性なしのエンティティ、表示名の別名、nullable型にも対応します。
+
+```mermaid
+erDiagram
+  direction LR
+  CUSTOMER[顧客] {
+    uuid id PK
+    string email UK
+  }
+  ORDER[注文] {
+    uuid id PK
+    uuid customer_id FK
+  }
+  CUSTOMER ||--o{ ORDER : places
+```
+
+関係の両端にカラスの足記法を表示します。`||`（1）、`o|`（0または1）、`|{`（1以上）、`o{`（0以上）を区別し、識別関係は実線、非識別関係は破線です。線はエンティティへの関係であり、特定の属性への接続を推測しません。`nodes` の補助設定には元のエンティティ名を使います。
+
+## ユースケース図
+
+Mermaid 12の `usecase-beta` を使います。アクターはアイコン付きカード、ユースケースは角丸カプセルまたは矩形、システム境界は淡い背景の枠です。アクターを関連する操作の近くに、include / extend先を別列に配置します。
+
+```mermaid
+usecase-beta
+  direction LR
+  actor Customer(顧客)
+  systemBoundary Shop[注文サービス]
+    Place(注文する)
+    Pay(支払う)
+    Coupon(クーポンを適用する)
+  end
+  Customer -- Place
+  Place ..> : include Pay
+  Coupon ..> : extend Place
+```
+
+関連、向き付き関連、include、extend、汎化（`Admin --|> User`）を区別します。include / extendは破線とラベル、汎化は白抜き三角です。宣言の前方参照、ステレオタイプ、円・クロス端点にも対応します。package境界やアクターの装飾種類はArchMap表示に統一し警告します。注記は `note for Pay "決済完了後に注文を確定"` と書きます。対象に破線で接続した折り返し可能な付箋として表示します。JSONノード、business指定は未対応としてエラーにします。
+
+空のシステム境界も表示します。手動配置と自動配置で境界が重なる場合は、内部の相対位置を保って境界全体をずらします。
+
+ER・ユースケースとも方向はLR / TB / TDです。任意のMermaid装飾や完全互換を保証するものではありません。
+
 ## 任意の表示設定
 
 1文書に1行の `%% archmap: JSON` を書けます。改行を含む複数行のJSONは未対応です。設定を省略しても標準Mermaidだけで描画できます。
@@ -140,7 +205,7 @@ flowchart LR
 
 | キー | 値と意味 |
 | --- | --- |
-| `view` | `system` / `layers` / `screens` / `activity`。シーケンスは宣言から判定 |
+| `view` | `system` / `layers` / `screens` / `activity` / `er` / `usecase`。シーケンスは宣言から判定 |
 | `style` | `cards`（既定）/ `icons`。アイコン主体表示は system / layers 用 |
 | `nodes.ID.icon` | 組み込みアイコン一覧のキー |
 | `nodes.ID.description` | 説明の文字列 |
@@ -163,7 +228,7 @@ flowchart LR
 
 ## 未対応と互換性
 
-この版はMermaid完全互換ではありません。`architecture-beta`、ER、クラス図などの他の図種、RL / BT方向、シーケンスの Note / box / create / destroy / critical / break / rect / クロス矢印、状態図のnote・同時状態、外部画像、click、init、frontmatterのconfigはエラーになります。
+この版はMermaid完全互換ではありません。`architecture-beta`、クラス図などの他の図種、RL / BT方向、シーケンスの Note / box / create / destroy / critical / break / rect / クロス矢印、状態図のnote・同時状態、click、init、frontmatterのconfigはエラーになります。
 
 MermaidのCSS装飾・クラス・接続アニメーション・個別グループの方向は警告を表示し、ArchMapの表示に統一します。Markdownラベルの装飾は文字列として表示します。HTMLラベルを実行せず、外部アイコンを取得しません。構文上正しくても、この対応範囲にない機能は利用できません。
 

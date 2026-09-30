@@ -102,4 +102,54 @@ stateDiagram-v2
   complete --> ship
   ship --> [*]
   wait --> [*]`},
+{id:'er',title:'ER図',subtitle:'キー・属性・型と多重度を読みやすく。',source:`---
+title: 注文と顧客のデータモデル
+---
+erDiagram
+  direction LR
+  CUSTOMER[顧客] {
+    uuid id PK
+    string name
+    string email UK
+  }
+  ORDER[注文] {
+    uuid id PK
+    uuid customer_id FK
+    datetime created_at
+  }
+  ORDER_ITEM[注文明細] {
+    uuid order_id PK, FK
+    uuid product_id PK, FK
+    int quantity
+  }
+  PRODUCT[商品] {
+    uuid id PK
+    string name
+    decimal price
+  }
+  CUSTOMER ||--o{ ORDER : places
+  ORDER ||--|{ ORDER_ITEM : contains
+  PRODUCT ||..o{ ORDER_ITEM : references`},
+{id:'usecase',title:'ユースケース図',subtitle:'利用者・システム境界・目的と関係を整理。',source:`---
+title: 注文サービスでできること
+---
+usecase-beta
+  direction LR
+  actor Customer(顧客)
+  actor Admin(管理者)
+  systemBoundary Shop[注文サービス]
+    Browse(商品を探す)
+    Place(注文する)
+    Track(配送を確認する)
+    Pay(支払う)
+    Coupon(クーポンを適用する)
+    Manage(商品を管理する)
+  end
+  Customer -- Browse
+  Customer -- Place
+  Customer -- Track
+  Admin -- Manage
+  Place ..> : include Pay
+  Coupon ..> : extend Place
+  note for Pay "決済が成功した場合に注文を確定する"`},
 ];

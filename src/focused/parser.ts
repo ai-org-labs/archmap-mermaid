@@ -1,4 +1,7 @@
 import mermaid from 'mermaid';
+import {validImageSource} from './images.js';
+import type { ErDB } from 'mermaid/dist/diagrams/er/erDb.js';
+import type { UsecaseDB } from 'mermaid/dist/diagrams/usecase/usecaseTypes.js';
 import { load, FAILSAFE_SCHEMA } from 'js-yaml';
 import type { FlowDB } from 'mermaid/dist/diagrams/flowchart/flowDb.js';
 import type { SequenceDB } from 'mermaid/dist/diagrams/sequence/sequenceDb.js';
@@ -8,7 +11,7 @@ import { getIcon } from '../icons.js';
 
 export const DIAGRAM_LIMITS = {sourceLength:500_000,nodes:400,groups:200,edges:1000,gridCoordinate:400,groupDepth:8} as const;
 const colors = ['blue','green','orange','purple','gray'];
-const kinds = ['system','layers','sequence','screens','activity'];
+const kinds = ['system','layers','sequence','screens','activity','er','usecase'];
 type RecordValue = Record<string, unknown>;
 const record = (x: unknown): x is RecordValue => !!x && typeof x === 'object' && !Array.isArray(x);
 // Mermaid's diagram databases/configuration are stateful; serialize all parsing,
@@ -46,7 +49,7 @@ async function parse(source: string): Promise<DiagramModel> {
     if(front){const v=load(front[1],{schema:FAILSAFE_SCHEMA});if(!record(v)||Object.keys(v).some(k=>k!=='title')||typeof v.title!=='string')error('frontmatter は文字列の title のみ対応しています。');else model.title=v.title;}
     if(model.diagnostics.some(d=>d.severity==='error'))return model;
     const body=source.replace(/^\s*---\s*\n[\s\S]*?\n---/,'').replace(/^\s*%%.*$/gm,'').trim();
-    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 です。');return model;}
+    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta です。');return model;}
     if(/(?:^|;)\s*click\s+/m.test(body)){error('click / リンク操作は未対応です。');return model;}
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
     const diagram=await mermaid.mermaidAPI.getDiagramFromText(source);
@@ -54,7 +57,7 @@ async function parse(source: string): Promise<DiagramModel> {
     if(diagram.type.startsWith('flowchart')) {
       const db=diagram.db as FlowDB;
       model.kind=(metadata.view as DiagramKind) || 'system'; direction(db.getDirection());
-      if(model.kind==='sequence')error('flowchart を sequence として表示できません。');
+      if(!['system','layers','screens','activity'].includes(model.kind))error('flowchart の view は system / layers / screens / activity です。');
       const groups=db.getSubGraphs(); const vertices=db.getVertices();
       if(db.getClasses().size)warning('Mermaid の style / class の装飾は使わず、ArchMapのテーマで描画します。');
       const parent=(id:string)=>groups.find(g=>g.nodes.includes(id))?.id;
@@ -63,10 +66,14 @@ async function parse(source: string): Promise<DiagramModel> {
       const shapes:Record<string,DiagramShape>={square:'card',rect:'card',round:'card',stadium:'start',circle:'start',doublecircle:'end',cylinder:'database',diamond:'decision',diam:'decision',rounded:'card'};
       for(const v of vertices.values()) {
         if(model.groups.some(g=>g.id===v.id))continue;
-        const shape=shapes[v.type || 'square']; if(!shape)error(`ノード ${v.id}: 形状 ${v.type} は未対応です。`);
+        const shape=v.img?'card':shapes[v.type || 'square']; if(!shape)error(`ノード ${v.id}: 形状 ${v.type} は未対応です。`);
         const n=node(v.id,text(v.text || v.id),shape || 'card',parent(v.id));
         if(v.icon)n.icon=getIcon(v.icon)?v.icon:v.icon.replace(':','/');
-        if(v.img)error(`ノード ${v.id}: 外部画像は未対応です。組み込みアイコンを利用してください。`);
+        if(v.img) {
+          if(!validImageSource(v.img))error(`ノード ${v.id}: 画像URLの形式が未対応です。`);
+          if([v.assetWidth,v.assetHeight].some(value=>value!==undefined&&(!Number.isFinite(value)||value<=0||value>4096)))error(`ノード ${v.id}: 画像サイズは0より大きく4096以下で指定してください。`);
+          n.image={src:v.img,width:v.assetWidth,height:v.assetHeight,position:v.pos??'b',constraint:v.constraint??'off'};
+        }
         if(v.link||v.haveCallback)error('click / リンク操作は未対応です。');
         if(v.styles.length||v.classes.length)warning('Mermaid の style / class の装飾は使わず、ArchMapのテーマで描画します。');
         if(v.labelType==='markdown' && /[*`]/.test(v.text || ''))warning('Markdownラベルの装飾は未対応です。文字列として表示します。');
@@ -78,6 +85,52 @@ async function parse(source: string): Promise<DiagramModel> {
         if(e.stroke==='thick'||e.style?.length||e.animate||e.animation)warning('接続の太さ・style・アニメーションはArchMapの表示に統一します。');
         model.edges.push({from:e.start,to:e.end,label:text(e.text),style:e.stroke==='dotted'?'dashed':'solid',bidirectional:e.type==='double_arrow_point',arrow:e.type==='arrow_open'?'none':'open',line:0});
       }
+    } else if(diagram.type==='er') {
+      const db=diagram.db as ErDB; model.kind='er'; direction(db.getDirection());
+      if(metadata.view && metadata.view!=='er')error('erDiagram の view は er のみです。');
+      const groups=db.getSubGraphs();
+      const entityIds=new Map([...db.getEntities()].map(([name,e])=>[e.id,name]));
+      model.groups=groups.map(g=>({id:g.id,label:text(g.title),color:'blue',line:0,parent:groups.find(p=>p.nodes.includes(g.id))?.id}));
+      for(const [name,entity] of db.getEntities()) {
+        model.nodes.push({...node(name,text(entity.alias || entity.label), 'card',groups.find(g=>g.nodes.includes(entity.id)||g.nodes.includes(entity.label))?.id),
+          attributes:entity.attributes.map(a=>({name:text(a.name),type:text(a.type),keys:[...a.keys],comment:text(a.comment)}))});
+      }
+      const cards:Record<string,string>={ONLY_ONE:'one',ZERO_OR_ONE:'zero-one',ONE_OR_MORE:'many',ZERO_OR_MORE:'zero-many'};
+      for(const r of db.getRelationships()) {
+        if(!cards[r.relSpec.cardA] || !cards[r.relSpec.cardB])error('この多重度は未対応です。');
+        model.edges.push({from:entityIds.get(r.entityA)??r.entityA,to:entityIds.get(r.entityB)??r.entityB,label:text(r.roleA),style:r.relSpec.relType==='IDENTIFYING'?'solid':'dashed',bidirectional:false,arrow:'none',sourceMarker:cards[r.relSpec.cardB],targetMarker:cards[r.relSpec.cardA],line:0});
+      }
+      if(db.getClasses().size || [...db.getEntities().values()].some(e=>e.cssStyles?.length))warning('ER図の装飾はArchMapのテーマに統一します。');
+    } else if(diagram.type==='usecase') {
+      const db=diagram.db as UsecaseDB;model.kind='usecase';direction(db.getDirection());
+      if(metadata.view && metadata.view!=='usecase')error('usecase-beta の view は usecase のみです。');
+      for(const a of db.getActors().values()) {
+        model.nodes.push({...node(a.id,text(a.label),'card',a.parentId),role:'actor',icon:a.icon?.replace(':','/')||'user',description:a.stereotype?`«${text(a.stereotype)}»`:undefined});
+        if(a.business)error('business actor は未対応です。');
+        if(a.type!=='normal'&&a.type!=='icon')warning('アクターの形状はArchMapのアクターカードに統一します。');
+      }
+      for(const u of db.getUseCases().values()) {
+        model.nodes.push({...node(u.id,text(u.label),u.shape==='rect'?'card':'start',u.parentId),role:'usecase',description:u.stereotype?`«${text(u.stereotype)}»`:undefined});
+        if(u.business)error('business usecase は未対応です。');
+      }
+      for(const g of db.getSystemBoundaries().values()) {
+        model.groups.push({id:g.id,label:text(g.label),color:'blue',line:0});
+        if(g.type==='package')warning('package境界は通常のシステム境界として表示します。');
+      }
+      for(const r of db.getRelationships()) {
+        const reverse=[1,5,6].includes(r.arrowType);
+        model.edges.push({relationship:r.type,from:reverse?r.target:r.source,to:reverse?r.source:r.target,
+          label:r.type==='include'||r.type==='extend'?`«${r.type}»`:text(r.label),
+          style:r.type==='include'||r.type==='extend'?'dashed':'solid',bidirectional:false,
+          arrow:r.type==='generalization'||r.arrowType>=2?'none':'open',
+          targetMarker:r.type==='generalization'?'generalization':[3,5].includes(r.arrowType)?'circle':[4,6].includes(r.arrowType)?'cross':undefined,line:0});
+      }
+      for(const note of db.getNotes().values()) {
+        model.nodes.push({...node(note.id,text(note.label),'note',model.nodes.find(n=>n.id===note.target)?.group),color:'orange'});
+        model.edges.push({from:note.target,to:note.id,label:'',style:'dashed',bidirectional:false,arrow:'none',line:0});
+      }
+      if(db.getJsonNodes().size)error('ユースケース図のJSONノードは未対応です。');
+      if(db.getClassDefs().size || [...db.getActors().values(),...db.getUseCases().values(),...db.getRelationships()].some(e=>e.styles.length||e.classes.length))warning('ユースケース図の装飾はArchMapのテーマに統一します。');
     } else if(diagram.type==='sequence') {
       const db=diagram.db as SequenceDB;model.kind='sequence';model.direction='LR';
       if(metadata.view && metadata.view!=='sequence')error('sequenceDiagram の view は sequence のみです。');
