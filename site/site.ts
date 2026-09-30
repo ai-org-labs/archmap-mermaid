@@ -85,7 +85,7 @@ function markdown(text: string): { body: string; toc: string } {
       html.push(`<div class="code-block"><span class="code-language">${escapeHtml(lang || "text")}</span><pre><code>${escapeHtml(block.join("\n"))}</code></pre></div>`); i++; continue;
     }
     const h = /^(#{1,4}) (.+)/.exec(line);
-    if (h) { const level = h[1].length; const id = `section-${heading++}`; html.push(`<h${level} id="${id}">${inlineMarkdown(h[2])}</h${level}>`); if (level === 2) toc.push(`<a href="#${id}">${escapeHtml(h[2])}</a>`); i++; continue; }
+    if (h) { const level = h[1].length; const sectionId = `section-${heading++}`; const id = h[2] === "対応表" ? "compatibility" : sectionId; html.push(`<h${level} id="${id}">${inlineMarkdown(h[2])}</h${level}>`); if (level === 2) toc.push(`<a href="#${id}">${escapeHtml(h[2])}</a>`); i++; continue; }
     if (/^\s*\|/.test(line)) {
       const rows: string[][] = [];
       while (i < lines.length && /^\s*\|/.test(lines[i])) { const cells = markdownCells(lines[i++]); if (cells.every(s => /^:?-+:?$/.test(s))) continue; rows.push(cells); }
@@ -159,7 +159,7 @@ function playground(): void {
   document.body.classList.add("playground-page");
   let active = DIAGRAM_SAMPLES.find(sample => sample.id === new URLSearchParams(location.search).get("sample")) || DIAGRAM_SAMPLES[0];
   let result: DiagramRenderResult | null = null; let timer = 0; let zoom = 1; let fitMode = true; let currentValid = false;
-  document.body.innerHTML = `${nav()}<main id="main" class="playground"><div class="workbench-heading"><div><span class="eyebrow">YOUR DIAGRAM WORKSPACE</span><h1>Playground<span class="heading-dot">.</span></h1></div><div class="workbench-actions"><span class="privacy-note"><span class="status-dot"></span> ブラウザ内で処理</span>${standalone ? '<span class="offline-badge">オフライン版</span>' : `<button type="button" id="offline-export" class="button small">${icon("download")} オフライン版</button>`}</div></div><div class="workbench"><section id="editor-panel" class="editor-panel" aria-label="ソースエディタ"><div class="editor-controls"><label for="sample-select">図の種類</label><select id="sample-select">${DIAGRAM_SAMPLES.map(sample => `<option value="${sample.id}">${escapeHtml(sample.title)}</option>`).join("")}</select><button class="icon-button" id="reset-source" title="サンプルに戻す" aria-label="現在の図をサンプルに戻す">${icon("reset")}</button></div><div class="editor-file"><span>${icon("code")} <span id="source-filename">${active.id}.mmd</span></span><span class="editor-language">MERMAID</span></div><div class="source-wrap"><pre id="line-numbers" class="line-numbers" aria-hidden="true"></pre><textarea id="source" aria-label="Mermaid ソースコード" aria-describedby="editor-hint" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div><div class="editor-bottom"><span id="draft-status" role="status"></span><span id="line-count"></span></div><div class="editor-hint" id="editor-hint"><span>入力すると自動でプレビュー</span><kbd>⌘ / Ctrl ↵</kbd></div><div class="diagnostics" id="diagnostics" role="status" aria-live="polite"></div><div class="editor-actions"><button class="button small" id="import-source">${icon("upload")} 読み込み</button><button class="button small" id="download-source">${icon("download")} ソース</button><input type="file" id="source-file" accept=".mmd,.txt,text/plain" hidden>${standalone ? '<button type="button" id="offline-guide" class="syntax-shortcut">構文ガイド ↗</button>' : `<a href="${route("syntax/")}" class="syntax-shortcut" target="_blank" rel="noopener">構文ガイド ↗</a>`}</div></section><section class="preview-panel" aria-label="図のプレビュー"><div class="preview-toolbar"><div class="preview-label"><span class="status-dot"></span> PREVIEW <span id="render-time"></span></div><div class="export-actions"><button type="button" id="toggle-editor" class="button small" aria-controls="editor-panel" aria-expanded="true">エディタを隠す</button><label class="style-picker" for="diagram-style">表示 <select id="diagram-style"><option value="cards">カード</option><option value="icons">アイコン</option></select></label><button class="button small" id="download-svg">${icon("download")} SVG</button><button class="button small" id="download-png">${icon("download")} PNG</button></div></div><div class="preview-canvas dot-grid" id="preview-canvas" tabindex="0" aria-label="プレビューキャンバス。ドラッグで移動、ホイールでズーム。矢印キーで移動、プラス・マイナスキーでズーム。"><div id="diagram-frame"><div id="diagram"></div></div><div id="preview-empty" class="preview-empty" hidden>有効なコードを入力すると、ここに図が表示されます。</div></div><div class="preview-bottom"><span id="diagram-summary"></span><div class="zoom-controls"><button id="zoom-out" aria-label="縮小" title="縮小">−</button><button id="zoom-value" aria-label="100% で表示">100%</button><button id="zoom-in" aria-label="拡大" title="拡大">＋</button><span class="control-divider"></span><button id="fit-diagram" aria-label="図全体を表示" title="図全体を表示">${icon("fit")} <span>Fit</span></button></div></div></section></div><div class="workspace-caption"><span>Text in. Clarity out.</span><span id="action-status" role="status" aria-live="polite">ソースはサーバーに送信されません。</span></div></main>`;
+  document.body.innerHTML = `${nav()}<main id="main" class="playground"><div class="workbench-heading"><div><span class="eyebrow">YOUR DIAGRAM WORKSPACE</span><h1>Playground<span class="heading-dot">.</span></h1></div><div class="workbench-actions"><span class="privacy-note"><span class="status-dot"></span> ブラウザ内で処理</span>${standalone ? '<span class="offline-badge">オフライン版</span>' : `<button type="button" id="offline-export" class="button small">${icon("download")} オフライン版</button>`}</div></div><div class="workbench"><section id="editor-panel" class="editor-panel" aria-label="ソースエディタ"><div class="editor-controls"><label for="sample-select">図の種類</label><select id="sample-select">${DIAGRAM_SAMPLES.map(sample => `<option value="${sample.id}">${escapeHtml(sample.title)}</option>`).join("")}</select><button class="icon-button" id="reset-source" title="サンプルに戻す" aria-label="現在の図をサンプルに戻す">${icon("reset")}</button></div><div class="editor-file"><span>${icon("code")} <span id="source-filename">${active.id}.mmd</span></span><span class="editor-language">MERMAID</span></div><div class="source-wrap"><pre id="line-numbers" class="line-numbers" aria-hidden="true"></pre><textarea id="source" aria-label="Mermaid ソースコード" aria-describedby="editor-hint" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea></div><div class="editor-bottom"><span id="draft-status" role="status"></span><span id="line-count"></span></div><div class="editor-hint" id="editor-hint"><span>入力すると自動でプレビュー</span><kbd>⌘ / Ctrl ↵</kbd></div><div class="diagnostics" id="diagnostics" role="status" aria-live="polite"></div><div class="editor-actions"><button class="button small" id="import-source">${icon("upload")} 読み込み</button><button class="button small" id="download-source">${icon("download")} ソース</button><input type="file" id="source-file" accept=".mmd,.txt,text/plain" hidden>${standalone ? '<button type="button" id="offline-guide" class="syntax-shortcut">構文ガイド ↗</button>' : `<a href="${route("syntax/")}" class="syntax-shortcut" target="_blank" rel="noopener">構文ガイド ↗</a>`}</div></section><section class="preview-panel" aria-label="図のプレビュー"><div class="preview-toolbar"><div class="preview-label"><span class="status-dot"></span> PREVIEW <span id="render-time"></span></div><div class="export-actions"><button type="button" id="toggle-editor" class="button small" aria-controls="editor-panel" aria-expanded="true">エディタを隠す</button><label class="style-picker" for="diagram-style">表示 <select id="diagram-style"><option value="cards">カード</option><option value="icons">アイコン</option></select></label><button class="button small" id="download-svg">${icon("download")} SVG</button><button class="button small" id="download-png">${icon("download")} PNG</button></div></div><div class="preview-canvas dot-grid" id="preview-canvas" tabindex="0" aria-label="プレビューキャンバス。スワイプ・ドラッグで移動、2本指のピンチ・ホイールでズーム。矢印キーで移動、プラス・マイナスキーでズーム。"><div id="diagram-frame"><div id="diagram"></div></div><div id="preview-empty" class="preview-empty" hidden>有効なコードを入力すると、ここに図が表示されます。</div></div><div class="preview-bottom"><span id="diagram-summary"></span><div class="zoom-controls"><button id="zoom-out" aria-label="縮小" title="縮小">−</button><button id="zoom-value" aria-label="100% で表示">100%</button><button id="zoom-in" aria-label="拡大" title="拡大">＋</button><span class="control-divider"></span><button id="fit-diagram" aria-label="図全体を表示" title="図全体を表示">${icon("fit")} <span>Fit</span></button></div></div></section></div><div class="workspace-caption"><span>Text in. Clarity out.</span><span id="action-status" role="status" aria-live="polite">ソースはサーバーに送信されません。</span></div></main>`;
   const source = $<HTMLTextAreaElement>("source"); const select = $<HTMLSelectElement>("sample-select"); const canvas = $("preview-canvas");
   const storageKey = () => `archmap:mermaid:${active.id}`;
   const announce = (message: string) => { $("action-status").textContent = message; };
@@ -189,23 +189,50 @@ function playground(): void {
     toggleEditor.textContent = collapsed ? "エディタを表示" : "エディタを隠す";
     if (fitMode) fit();
   });
-  let drag: { id: number; x: number; y: number; panX: number; panY: number } | undefined;
+  // Track both touch contacts. Rebase on each event so adding/removing a
+  // finger, reaching a zoom limit, or losing capture never causes a jump.
+  const pointers = new Map<number, {x: number; y: number}>();
   canvas.addEventListener("pointerdown", event => {
-    if (!result || drag || !event.isPrimary || (event.button !== 0 && event.button !== 1)) return;
+    if ((event.target as Element).closest("a[href]")) return;
+    if (!result || pointers.size >= 2 || (event.button !== 0 && event.button !== 1)) return;
     event.preventDefault(); canvas.focus({preventScroll:true}); fitMode = false;
-    drag = {id:event.pointerId,x:event.clientX,y:event.clientY,panX,panY};
+    pointers.set(event.pointerId, {x:event.clientX,y:event.clientY});
     canvas.setPointerCapture(event.pointerId); canvas.classList.add("is-panning");
   });
   canvas.addEventListener("pointermove", event => {
-    if (!drag || drag.id !== event.pointerId) return;
-    panX = drag.panX + event.clientX - drag.x; panY = drag.panY + event.clientY - drag.y; applyPan();
+    const previous = pointers.get(event.pointerId);
+    if (!previous) return;
+    event.preventDefault();
+    const other = [...pointers.entries()].find(([id]) => id !== event.pointerId)?.[1];
+    const next = {x:event.clientX,y:event.clientY};
+    if (other) {
+      const before = {x:(previous.x+other.x)/2,y:(previous.y+other.y)/2};
+      const after = {x:(next.x+other.x)/2,y:(next.y+other.y)/2};
+      const oldDistance = Math.hypot(previous.x-other.x,previous.y-other.y);
+      const newDistance = Math.hypot(next.x-other.x,next.y-other.y);
+      if (oldDistance > 2 && newDistance > 2) zoomAt(zoom * newDistance / oldDistance, before.x, before.y);
+      panX += after.x-before.x; panY += after.y-before.y;
+    } else {
+      panX += next.x-previous.x; panY += next.y-previous.y;
+    }
+    pointers.set(event.pointerId,next); applyPan();
   });
-  const stopPan = () => { drag = undefined; canvas.classList.remove("is-panning"); };
-  canvas.addEventListener("pointerup", event => { if (drag?.id !== event.pointerId) return; if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId); stopPan(); });
-  canvas.addEventListener("pointercancel", stopPan); canvas.addEventListener("lostpointercapture", stopPan);
+  const stopPointer = (event: PointerEvent) => {
+    if (!pointers.delete(event.pointerId)) return;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    canvas.classList.toggle("is-panning", pointers.size > 0);
+  };
+  const stopPan = () => {
+    const ids = [...pointers.keys()]; pointers.clear();
+    for (const id of ids) if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+    canvas.classList.remove("is-panning");
+  };
+  canvas.addEventListener("pointerup", stopPointer);
+  canvas.addEventListener("pointercancel", stopPointer);
+  canvas.addEventListener("lostpointercapture", stopPointer);
   window.addEventListener("blur", stopPan);
   canvas.addEventListener("wheel", event => {
-    if (!result || drag) return;
+    if (!result || pointers.size) return;
     event.preventDefault();
     const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1);
     zoomAt(zoom * Math.exp(-Math.max(-300, Math.min(300, delta)) * .002), event.clientX, event.clientY);

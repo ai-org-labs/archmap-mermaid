@@ -35,7 +35,7 @@ describe('official Mermaid input → ArchMap renderer',()=>{
     expect(models.map(m=>m.kind)).toEqual(DIAGRAM_SAMPLES.map(s=>s.id));
     expect(models[0].nodes.some(n=>n.id==='api')).toBe(true);expect(models[1].nodes.some(n=>n.id==='api')).toBe(false);
   });
-  it.each(['classDiagram\nA --> B','architecture-beta\nservice A(cloud)[A]','flowchart RL\nA-->B','sequenceDiagram\nA->>B: Hi\nNote over A: hello','stateDiagram-v2\nA-->B\nnote right of A: hello','flowchart LR\nA@{img: "javascript:alert(1)"}'])('reports unsupported syntax: %s',async source=>{
+  it.each(['classDiagram\nA --> B','architecture-beta\nservice A(cloud)[A]','flowchart LR\nA@{img: "javascript:alert(1)"}'])('reports unsupported syntax: %s',async source=>{
     expect((await parseDiagram(source)).diagnostics.some(d=>d.severity==='error')).toBe(true);
   });
   it('escapes untrusted labels and rejects bad metadata',async()=>{
