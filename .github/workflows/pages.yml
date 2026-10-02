@@ -23,8 +23,8 @@ jobs:
       - run: npm run verify
       - name: Assemble library and documentation
         run: |
-          cp -R dist docs site-dist/
-          cp README.md LICENSE THIRD_PARTY_NOTICES.md site-dist/
+          cp -R dist docs agents site-dist/
+          cp README.md AGENTS.md LICENSE THIRD_PARTY_NOTICES.md site-dist/
       - uses: actions/configure-pages@v5
         with:
           enablement: true

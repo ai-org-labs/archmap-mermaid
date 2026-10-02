@@ -1,0 +1,26 @@
+---
+title: PDF解析 — 受付から結果照会
+---
+sequenceDiagram
+  actor user as 利用者
+  participant api as 解析API
+  participant queue as キュー
+  participant worker as ワーカー
+  participant store as 結果ストア
+  user->>+api: PDFを送信
+  api->>queue: 解析ジョブを登録
+  api-->>-user: 受付IDを返す
+  queue->>+worker: ジョブを配信
+  worker->>worker: PDFを解析
+  worker->>+store: 解析結果を保存
+  store-->>-worker: 保存完了
+  worker-->>-queue: 処理完了
+  user->>+api: 受付IDで結果照会
+  api->>+store: 解析結果を取得
+  store-->>-api: 結果または未完了
+  alt 解析が完了
+    api-->>user: 解析結果
+  else 処理中
+    api-->>user: 処理中の状態
+  end
+  deactivate api

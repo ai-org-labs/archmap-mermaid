@@ -1,0 +1,23 @@
+---
+title: PDF解析サービス — システム構成
+---
+flowchart TB
+  user[利用者]
+  api[解析API]
+  subgraph analysis[非同期解析]
+    direction LR
+    queue[解析キュー]
+    worker[解析ワーカー]
+    queue -->|ジョブ取得| worker
+  end
+  subgraph data[共有データ]
+    direction TB
+    jobs[(ジョブ管理)]
+    result[(解析結果)]
+  end
+  user -->|PDFを送信| api
+  api -->|受付・状態照会| jobs
+  api -->|ジョブ登録| queue
+  worker -->|状態更新| jobs
+  worker -->|保存| result
+  api -->|結果取得| result

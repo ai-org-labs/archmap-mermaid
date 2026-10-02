@@ -1,0 +1,28 @@
+---
+title: PDF解析 — 検査と並列処理
+---
+%% archmap: {"view":"activity"}
+stateDiagram-v2
+  direction TB
+  state "PDFを受け付ける" as receive
+  state valid <<choice>>
+  valid : 受付可能？
+  state parallel <<fork>>
+  parallel : 並列処理
+  state "本文を抽出する" as extract
+  state "プレビューを生成する" as preview
+  state complete <<join>>
+  complete : 両方完了
+  state "解析結果を保存する" as save
+  state "受付エラーを返す" as reject
+  [*] --> receive
+  receive --> valid
+  valid --> parallel: はい
+  valid --> reject: いいえ
+  parallel --> extract
+  parallel --> preview
+  extract --> complete
+  preview --> complete
+  complete --> save
+  save --> [*]
+  reject --> [*]

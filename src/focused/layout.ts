@@ -485,7 +485,11 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
   const gapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
-  const gapY = Math.max(screenGap, iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
+  // Activity flows often have many short rows. Reserve space for labels and
+  // branching without imposing the system diagram's 132px corridor on each step.
+  const gapY = Math.max(screenGap, model.kind === 'activity'
+    ? Math.max(64, model.groups.length ? groupHeader + 32 : 0, Math.min(maxDegree, 16) * 8 + 32)
+    : iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
   const marginX = Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
@@ -771,7 +775,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
     }
     return cost;
   };
-  if (['system','er','usecase'].includes(model.kind) && specs.length > (model.kind==='system'?8:1) && specs.length <= 60) {
+  if (['system','er','usecase'].includes(model.kind) && specs.length > 1 && specs.length <= 60) {
     let best = { edges, usedLabels, cost: solutionCost() };
     const orders = [
       [...specs].reverse(),

@@ -20,6 +20,11 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 オンライン版もブラウザー内で処理します。画像URLを指定した場合は配信元から画像を読み込みます。GitHub Pagesは静的ファイル配信です。
 オフライン版はパーサー・アイコン・ドキュメントを含む単一HTMLです。
 
+## 図作成エージェント
+
+[利用手順](docs/AGENT_USAGE.md)に沿って、自然言語や既存Mermaidから図を作成・修正できます。
+共通手順は [agents/diagram-designer.md](agents/diagram-designer.md)、リポジトリの入口は [AGENTS.md](AGENTS.md)、Copilot用は [.github/agents/archmap-designer.agent.md](https://github.com/ai-org-labs/archmap-mermaid/blob/main/.github/agents/archmap-designer.agent.md) です。
+
 ## 開発
 
 Node.js 22.12以上。`npm ci` の後、`npm run dev`。

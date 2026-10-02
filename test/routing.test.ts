@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import fan from './fixtures/fan-topology.json';
 import nested from './fixtures/nested-topology.json';
 import type {DiagramModel} from '../src/focused/types.js';
@@ -83,4 +84,58 @@ stateDiagram-v2
   const l=computeDiagramLayout(m);expect(l.edges).toHaveLength(6);
   expect(l.nodes.some(n=>n.node.shape==='decision')).toBe(true);
  });
+});
+
+
+function agentExample(name:string) {
+ return readFileSync(`docs/diagrams/agent-examples/${name}.mmd`,'utf8');
+}
+function crossingCount(layout:DiagramLayout) {
+ let count=0;
+ for(const [i,e] of layout.edges.entries())for(let k=1;k<e.points.length;k++) {
+  const a=e.points[k-1]!,b=e.points[k]!;
+  for(const other of layout.edges.slice(i+1))for(let j=1;j<other.points.length;j++) {
+   const c=other.points[j-1]!,d=other.points[j]!;
+   if(a.x===b.x&&c.y===d.y&&a.x>Math.min(c.x,d.x)&&a.x<Math.max(c.x,d.x)&&c.y>Math.min(a.y,b.y)&&c.y<Math.max(a.y,b.y)||a.y===b.y&&c.x===d.x&&c.x>Math.min(a.x,b.x)&&c.x<Math.max(a.x,b.x)&&a.y>Math.min(c.y,d.y)&&a.y<Math.max(c.y,d.y))count++;
+  }
+ }
+ return count;
+}
+it('optimizes a small system without crossings or declaration-order dependence',async()=>{
+ const model=await parseDiagram(agentExample('01-pdf-system'));
+ expect(model.diagnostics).toEqual([]);
+ expect(model.edges).toHaveLength(7);
+ const layout=computeDiagramLayout(model);assertClear(layout);
+ expect(crossingCount(layout)).toBe(0);
+ expect(layout.edges.reduce((sum,e)=>sum+Math.max(0,e.points.length-2),0)).toBeLessThanOrEqual(9);
+ const reversed=computeDiagramLayout({...model,edges:[...model.edges].reverse()});
+ for(const e of layout.edges)expect(reversed.edges.find(other=>other.edge===e.edge)?.points).toEqual(e.points);
+});
+it.each(['TB','BT','LR','RL'])('keeps compact activity corridors clear (%s)',async direction=>{
+ const model=await parseDiagram(agentExample('02-pdf-activity').replace('direction TB',`direction ${direction}`));
+ expect(model.diagnostics).toEqual([]);
+ const layout=computeDiagramLayout(model);
+ // A synchronization node reserves room for its caption; its solid obstacle is the bar.
+ assertClear({...layout,nodes:layout.nodes.map(n=>n.junction?{...n,...n.junction}:n)});
+ expect(crossingCount(layout)).toBe(0);
+ if(direction==='TB'||direction==='BT')expect(layout.height).toBeLessThan(1900);
+ for(const [from,to] of [['parallel','extract'],['extract','complete']])expect(layout.edges.find(e=>e.edge.from===from&&e.edge.to===to)!.points).toHaveLength(2);
+});
+it('leaves room for multiline activity conditions and composite headings',async()=>{
+ const model=await parseDiagram(`%% archmap: {"view":"activity"}
+stateDiagram-v2
+ direction TB
+ state Processing {
+  [*] --> Check
+  state Check <<choice>>
+  Check --> Save: all required validation checks succeeded
+  Check --> Reject: validation failed and user correction is required
+  Save --> [*]
+  Reject --> [*]
+ }
+ [*] --> Processing
+ Processing --> [*]`);
+ expect(model.diagnostics).toEqual([]);
+ const layout=computeDiagramLayout(model);assertClear(layout);
+ for(const e of layout.edges)if(e.labelBox)for(const other of layout.edges)if(other!==e)for(let i=1;i<other.points.length;i++)expect(segmentIntersectsBox(other.points[i-1]!,other.points[i]!,e.labelBox,0)).toBe(false);
 });
