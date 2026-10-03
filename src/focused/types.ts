@@ -72,3 +72,10 @@ export interface DiagramLayout {
 }
 export interface DiagramRenderResult { svg: string; model: DiagramModel; layout: DiagramLayout; durationMs: number }
 export interface DiagramSample { id: DiagramKind; title: string; subtitle: string; source: string }
+
+/** Rendering preference only; never changes Mermaid direction, content or font size. */
+export interface DiagramLayoutOptions {
+  balance?: 'auto' | 'off';
+  /** Preferred width / height. A soft preference, not a fixed canvas size. */
+  targetAspectRatio?: number;
+}

@@ -41,6 +41,8 @@ const result = await renderMermaid('flowchart LR\nA[Web] --> B[API]');
 document.querySelector('#diagram').innerHTML = result.svg;
 ```
 
+縦横に長い図は、意味と文字サイズを保って余白の候補を自動比較します。第2引数の `targetAspectRatio` と `balance` は [配置設計](docs/LAYOUT_BALANCE.md) を参照してください。
+
 DOMのあるブラウザー向けです。解析は公式Mermaidの状態を共有するため直列化しています。
 MermaidパーサーのデータベースAPIに依存する箇所は `src/focused/parser.ts` に隔離し、
 バージョンを固定しています。アップグレード時は変換テストとブラウザー確認を実施します。

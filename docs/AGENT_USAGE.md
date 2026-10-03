@@ -25,6 +25,7 @@
 - `agents/diagram-designer.md`
 - `docs/SYNTAX.md`
 - `docs/DIAGRAM_LAYOUT_GUIDE.md`
+- `docs/LAYOUT_BALANCE.md`
 - `docs/AI_PROMPT_TEMPLATE.md`
 - 必要なら `.github/agents/archmap-designer.agent.md` と、その参照先の入口
 

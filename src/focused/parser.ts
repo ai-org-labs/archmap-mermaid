@@ -7,7 +7,7 @@ import type { UsecaseDB } from 'mermaid/dist/diagrams/usecase/usecaseTypes.js';
 import { load, JSON_SCHEMA } from 'js-yaml';
 import type { FlowDB } from 'mermaid/dist/diagrams/flowchart/flowDb.js';
 import type { SequenceDB } from 'mermaid/dist/diagrams/sequence/sequenceDb.js';
-import type { StateDB, StateStmt } from 'mermaid/dist/diagrams/state/stateDb.js';
+import type { StateDB, StateStmt, Stmt } from 'mermaid/dist/diagrams/state/stateDb.js';
 import type { DiagramModel, DiagramNode, DiagramKind, DiagramShape, DiagramColor, DiagramFragmentEvent } from './types.js';
 import { getIcon } from '../icons.js';
 
@@ -205,6 +205,11 @@ async function parse(source: string): Promise<DiagramModel> {
         }
       };
       for(const state of db.getStates().values()) collectState(state);
+      // Mermaid 12 keeps the first implicit reference in getStates(). A later
+      // typed declaration remains in the parsed document, but not that map.
+      // Isolate this version-pinned database detail here; never reparse with regex.
+      const rootDoc = (db as unknown as {rootDoc?: Stmt[]}).rootDoc;
+      if (Array.isArray(rootDoc)) collectState({id:'root',stmt:'state',type:'default',doc:rootDoc});
       const data=db.getData();
       for(const v of data.nodes){
         if(v.shape==='noteGroup')continue;

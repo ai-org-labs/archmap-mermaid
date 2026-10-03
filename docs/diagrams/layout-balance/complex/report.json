@@ -1,0 +1,58 @@
+[
+  {
+    "name": "system",
+    "nodes": 15,
+    "edges": 18,
+    "before": [
+      1195,
+      2559
+    ],
+    "after": [
+      1195,
+      2559
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "activity",
+    "nodes": 14,
+    "edges": 16,
+    "before": [
+      1830,
+      1956
+    ],
+    "after": [
+      1830,
+      1956
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "er",
+    "nodes": 10,
+    "edges": 10,
+    "before": [
+      1560,
+      1132
+    ],
+    "after": [
+      1560,
+      1132
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "sequence",
+    "nodes": 5,
+    "edges": 10,
+    "before": [
+      1604,
+      1541
+    ],
+    "after": [
+      1604,
+      1541
+    ],
+    "diagnostics": []
+  }
+]

@@ -4,7 +4,7 @@ import {imageSize,validImageSource} from './images.js';
 import { groupContains } from './groups.js';
 import { getIcon } from '../icons.js';
 import { entityContent, BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, junctionText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
-import type { DiagramColor, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
+import type { DiagramColor, DiagramLayoutOptions, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
 
 const palette: Record<DiagramColor, { ink: string; fill: string; border: string }> = {
   blue: { ink: '#2873dc', fill: '#edf4ff', border: '#b9d2f5' }, green: { ink: '#19845e', fill: '#ecf8f0', border: '#b7dfc7' },
@@ -118,8 +118,8 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
   return warnings;
 }
 
-export function renderDiagram(model: DiagramModel): DiagramRenderResult {
-  const start = performance.now(), layout = computeDiagramLayout(model);
+export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramRenderResult {
+  const start = performance.now(), layout = computeDiagramLayout(model, options);
   const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram' }[model.kind]);
   const groups = layout.groups.map(({ group, x, y, width, height }) => {
     const colors = palette[group.color] ?? palette.gray;

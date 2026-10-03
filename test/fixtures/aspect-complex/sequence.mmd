@@ -1,0 +1,28 @@
+sequenceDiagram
+ actor U as 利用者
+ participant A as 注文API
+ participant S as 在庫
+ participant P as 決済
+ participant Q as 通知キュー
+ U->>+A: 注文
+ Note over A,P: 受付IDで重複実行を防止
+ par 在庫確保
+  A->>+S: 在庫を確保
+  S-->>-A: 確保結果
+ and 決済
+  A->>+P: 決済する
+  P-->>-A: 決済結果
+ end
+ alt 両方成功
+  A->>Q: 通知イベントを登録
+  A-->>U: 注文完了
+ else 失敗
+  opt 在庫確保済み
+   A->>S: 確保を解除
+  end
+  opt 決済済み
+   A->>P: 決済を取り消す
+  end
+  A-->>U: エラーと次の操作
+ end
+ deactivate A

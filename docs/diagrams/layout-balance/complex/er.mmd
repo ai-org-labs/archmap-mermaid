@@ -1,0 +1,27 @@
+erDiagram
+ direction TB
+ CUSTOMER ||--o{ ORDERS : places
+ CUSTOMER ||--o{ ADDRESS : owns
+ ORDERS ||--|{ ITEM : contains
+ PRODUCT ||--o{ ITEM : references
+ CATEGORY ||--o{ PRODUCT : groups
+ ORDERS ||--o{ PAYMENT : receives
+ ORDERS ||--o{ SHIPMENT : ships
+ ADDRESS ||--o{ SHIPMENT : destination
+ SHIPMENT ||--|{ TRACKING : records
+ PAYMENT ||--o{ REFUND : refunds
+ CUSTOMER {
+  uuid id PK
+  string display_name
+  string email UK
+ }
+ ORDERS {
+  uuid id PK
+  uuid customer_id FK
+  string status
+ }
+ PRODUCT {
+  uuid id PK
+  string name
+  decimal price
+ }

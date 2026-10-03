@@ -1,0 +1,36 @@
+%% archmap: {"style":"icons"}
+flowchart TB
+user@{ icon: "user", label: "利用者" } --> edge[認証ゲートウェイ]
+subgraph platform[業務プラットフォーム]
+ direction TB
+ subgraph services[同期サービス]
+  direction LR
+  orders[注文API] --> inventory[在庫API]
+  orders --> payment[決済API]
+  orders --> catalog[商品API]
+ end
+ subgraph async[非同期処理]
+  direction LR
+  queue@{ icon: "queue", label: "イベントキュー" } --> ship[出荷ワーカー]
+  queue --> mail[通知ワーカー]
+  queue --> audit[監査ワーカー]
+ end
+end
+subgraph data[永続化]
+ direction LR
+ orderdb[(注文DB)]
+ stockdb[(在庫DB)]
+ ledger[(決済台帳)]
+ logs[(監査ログ)]
+end
+edge --> orders
+edge --> catalog
+orders -->|注文状態を保存| orderdb
+inventory --> stockdb
+payment --> ledger
+orders -->|在庫確保と決済完了後にイベントを発行| queue
+ship --> stockdb
+ship -->|出荷結果を反映| orderdb
+mail --> provider[外部メール配信]
+audit --> logs
+provider -->|配信失敗の再試行| mail

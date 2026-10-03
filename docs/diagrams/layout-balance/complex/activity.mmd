@@ -1,0 +1,32 @@
+%% archmap: {"view":"activity"}
+stateDiagram-v2
+ direction TB
+ [*] --> Receive
+ state "注文を受け付ける" as Receive
+ Receive --> Valid
+ state Valid <<choice>>
+ Valid : 入力は有効？
+ Valid --> Fork: はい
+ Valid --> Correct: いいえ
+ state "入力内容を修正する" as Correct
+ Correct --> Receive: 再送
+ state Fork <<fork>>
+ Fork --> Reserve
+ Fork --> Charge
+ state "在庫を確保する" as Reserve
+ state "決済を実行する" as Charge
+ Reserve --> Join
+ Charge --> Join
+ state Join <<join>>
+ Join --> Review
+ state Review <<choice>>
+ Review : 両方成功？
+ Review --> Ship: はい
+ Review --> Cancel: いいえ
+ state "出荷を依頼する" as Ship
+ state "確保と決済を取り消す" as Cancel
+ Ship --> Notify
+ Cancel --> Notify
+ state "結果を通知する" as Notify
+ note right of Cancel: 二重実行を避けるため受付IDで照合
+ Notify --> [*]

@@ -1,7 +1,7 @@
 import {flowShapePort} from './flow-shapes.js';
 import {imageSize} from './images.js';
 import { groupAncestors, orderedGroups } from './groups.js';
-import type { DiagramBox, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
+import type { DiagramBox, DiagramLayoutOptions, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
 
 export const FONT = 'Inter, "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 export const TITLE_SIZE = 15;
@@ -436,7 +436,65 @@ function sequenceLayout(model: DiagramModel): DiagramLayout {
   return {width:Math.ceil(Math.max(rightmost+shift+margin,...notes.map(n=>n.x+n.width+24),...groups.map(g=>g.x+g.width+24),...fragments.map(f=>f.x+f.width+24))),height,nodes,groups,edges,notes,destructions,...(activations.length?{activations}:{}),...(fragments.length?{fragments}:{})};
 }
 
-export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
+/** Quantities which must not get worse to obtain a nicer aspect ratio. */
+function layoutDefects(layout: DiagramLayout, model: DiagramModel): number[] {
+  let collisions = 0, shared = 0, crossings = 0, labelHits = 0;
+  for (const [i,n] of layout.nodes.entries()) for (const other of layout.nodes.slice(i + 1)) if (boxesOverlap(n, other)) collisions++;
+  for (const [i,g] of layout.groups.entries()) {
+    for (const n of layout.nodes) if (!groupAncestors(model,n.node.group).includes(g.group.id) && boxesOverlap(g,n)) collisions++;
+    for (const other of layout.groups.slice(i + 1)) if (!groupAncestors(model,other.group.id).includes(g.group.id) && !groupAncestors(model,g.group.id).includes(other.group.id) && boxesOverlap(g,other)) collisions++;
+  }
+  const captions: DiagramBox[] = [...layout.nodes.flatMap(n => n.junctionLabel ? [n.junctionLabel] : []), ...layout.groups.map(g => ({x:g.x+16,y:g.y+9,width:Math.min(g.width-32,textWidth(g.group.label,12)),height:wrapText(g.group.label,g.width-34,12).length*17+5}))];
+  for (const [i, edge] of layout.edges.entries()) {
+    for (let k = 1; k < edge.points.length; k++) {
+      const a = edge.points[k - 1]!, b = edge.points[k]!;
+      for (const n of layout.nodes) {
+        if (n.node.id === edge.edge.from && k === 1 || n.node.id === edge.edge.to && k === edge.points.length - 1) continue;
+        if (segmentIntersectsBox(a, b, n.junction ?? n, -1)) collisions++;
+      }
+      for (const caption of captions) if (segmentIntersectsBox(a,b,caption,2)) labelHits++;
+      for (const other of layout.edges) if (other !== edge && other.labelBox && segmentIntersectsBox(a, b, other.labelBox, 2)) labelHits++;
+      for (const other of layout.edges.slice(i + 1)) for (let j = 1; j < other.points.length; j++) {
+        const c = other.points[j - 1]!, d = other.points[j]!;
+        if (a.x === b.x && c.x === d.x && a.x === c.x && Math.min(Math.max(a.y,b.y),Math.max(c.y,d.y)) > Math.max(Math.min(a.y,b.y),Math.min(c.y,d.y)) || a.y === b.y && c.y === d.y && a.y === c.y && Math.min(Math.max(a.x,b.x),Math.max(c.x,d.x)) > Math.max(Math.min(a.x,b.x),Math.min(c.x,d.x))) shared++;
+        if (a.x === b.x && c.y === d.y && a.x > Math.min(c.x,d.x) && a.x < Math.max(c.x,d.x) && c.y > Math.min(a.y,b.y) && c.y < Math.max(a.y,b.y) || a.y === b.y && c.x === d.x && c.x > Math.min(a.x,b.x) && c.x < Math.max(a.x,b.x) && a.y > Math.min(c.y,d.y) && a.y < Math.max(c.y,d.y)) crossings++;
+      }
+    }
+    if (edge.labelBox) {
+      for (const n of layout.nodes) if (boxesOverlap(edge.labelBox, n.junction ?? n)) labelHits++;
+      for (const other of layout.edges.slice(i + 1)) if (other.labelBox && boxesOverlap(edge.labelBox, other.labelBox)) labelHits++;
+    }
+  }
+  return [collisions, shared, crossings, labelHits];
+}
+
+export function computeDiagramLayout(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramLayout {
+  const target = options.targetAspectRatio ?? 1.4;
+  if (!Number.isFinite(target) || target < 0.25 || target > 4) throw new RangeError('targetAspectRatio must be between 0.25 and 4');
+  const baseline = layoutWithSpacing(model);
+  // Respect authored coordinates and diagram-specific chronology/layer geometry.
+  // Limit the extra routing work: at most two candidates for modest graphs.
+  if (options.balance === 'off' || ['sequence','layers'].includes(model.kind) || model.nodes.some(n => n.at) || model.nodes.length > 80 || model.edges.length > 60) return baseline;
+  const ratio = baseline.width / baseline.height;
+  const deviation = (l: DiagramLayout) => Math.abs(Math.log(l.width / l.height / target));
+  if (deviation(baseline) < Math.log(1.8)) return baseline;
+  const defects = layoutDefects(baseline, model);
+  const distance = (l: DiagramLayout) => l.edges.reduce((sum,e) => sum + length(e.points), 0);
+  const bends = (l: DiagramLayout) => l.edges.reduce((sum,e) => sum + Math.max(0, e.points.length - 2), 0);
+  const baseDistance = distance(baseline), baseBends = bends(baseline);
+  const score = (l: DiagramLayout) => deviation(l) + 0.15 * Math.log(l.width * l.height / (baseline.width * baseline.height));
+  let best = baseline;
+  for (const factor of [0.8, 0.55]) {
+    const candidate = layoutWithSpacing(model, ratio > target ? {x: factor, y: 1} : {x: 1, y: factor});
+    // Do not buy a squarer canvas with overlaps, detours or extra bends.
+    if (distance(candidate) > baseDistance * 1.05 || bends(candidate) > baseBends || score(candidate) >= score(best) - 0.01) continue;
+    if (layoutDefects(candidate, model).some((value,i) => value > defects[i]!)) continue;
+    best = candidate;
+  }
+  return best;
+}
+
+function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): DiagramLayout {
   if (model.kind === 'sequence') return sequenceLayout(model);
   if(model.groups.some(g=>g.collapsed)) {
     const owner=(id:string)=>{
@@ -447,7 +505,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
       const from=owner(e.from)||e.from,to=owner(e.to)||e.to;
       return from===to&&(from!==e.from||to!==e.to)?[]:[{...e,from,to}];
     })};
-    const layout=computeDiagramLayout(projected);
+    const layout=layoutWithSpacing(projected, spacing);
     return {...layout,groups:layout.groups.map(g=>({...g,group:model.groups.find(original=>original.id===g.group.id)!}))};
   }
   // Give empty leaf groups a layout-only footprint; never add fake model nodes.
@@ -455,7 +513,7 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   if(empty.length) {
     const ids=new Set([...model.nodes.map(n=>n.id),...model.groups.map(g=>g.id)]), ghosts=new Set<string>();
     const placeholders=empty.map((g,i)=>{let id=`__empty_group_${i}`;while(ids.has(id))id+='_';ids.add(id);ghosts.add(id);return {id,label:'',group:g.id,shape:'card' as const,color:g.color,line:0};});
-    const layout=computeDiagramLayout({...model,nodes:[...model.nodes,...placeholders]});
+    const layout=layoutWithSpacing({...model,nodes:[...model.nodes,...placeholders]}, spacing);
     return {...layout,nodes:layout.nodes.filter(n=>!ghosts.has(n.node.id))};
   }
 
@@ -483,13 +541,16 @@ export function computeDiagramLayout(model: DiagramModel): DiagramLayout {
   const maxDegree = Math.max(0, ...degree.values());
   const nesting = Math.max(1, ...model.groups.map(group => groupAncestors(model, group.id).length));
   const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
-  const gapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
+  const baseGapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
   // Activity flows often have many short rows. Reserve space for labels and
   // branching without imposing the system diagram's 132px corridor on each step.
-  const gapY = Math.max(screenGap, model.kind === 'activity'
+  const baseGapY = Math.max(screenGap, model.kind === 'activity'
     ? Math.max(64, model.groups.length ? groupHeader + 32 : 0, Math.min(maxDegree, 16) * 8 + 32)
     : iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
+  // Never shrink nodes, labels or heading clearance. Only routing corridors vary.
+  const gapX = Math.max(baseGapX * spacing.x, Math.min(baseGapX, Math.max(64, screenGap, maxLabel + 24, nesting > 1 ? nesting * 44 + 48 : 0)));
+  const gapY = Math.max(baseGapY * spacing.y, Math.min(baseGapY, Math.max(48, screenGap, model.groups.length ? groupHeader + 32 : 0)));
   const marginX = Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
