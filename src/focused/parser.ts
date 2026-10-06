@@ -1,4 +1,5 @@
 import mermaid from 'mermaid';
+import {resolvePaint} from './paint.js';
 import {safeLink} from './links.js';
 import {FLOW_SHAPES} from './flow-shapes.js';
 import {validImageSource} from './images.js';
@@ -78,9 +79,9 @@ async function parse(source: string): Promise<DiagramModel> {
       model.kind=(metadata.view as DiagramKind) || 'system'; direction(db.getDirection());
       if(!['system','layers','screens','activity'].includes(model.kind))error('flowchart の view は system / layers / screens / activity です。');
       const groups=db.getSubGraphs(); const vertices=db.getVertices();
-      if(db.getClasses().size)warning('Mermaid の style / class の装飾は使わず、ArchMapのテーマで描画します。');
+
       const parent=(id:string)=>groups.find(g=>g.nodes.includes(id))?.id;
-      model.groups=groups.map(g=>({id:g.id,label:text(g.title),parent:parent(g.id),collapsed:g.metadata?.view==='collapsed',direction:g.dir==='TB'?'TD':g.dir as DiagramModel['direction']|undefined,color:'blue',line:0}));
+      model.groups=groups.map(g=>({id:g.id,label:text(g.title),paint:resolvePaint(db.getClasses(),[...g.classes,...(vertices.get(g.id)?.classes??[])],vertices.get(g.id)?.styles ?? [],warning),parent:parent(g.id),collapsed:g.metadata?.view==='collapsed',direction:g.dir==='TB'?'TD':g.dir as DiagramModel['direction']|undefined,color:'blue',line:0}));
       for(const g of groups)if(g.metadata&&Object.keys(g.metadata).some(k=>!['view','label'].includes(k)))warning('subgraphの装飾はArchMapのテーマで表示します。');
       const shapes:Record<string,DiagramShape>={square:'card',rect:'card',round:'card',stadium:'start',circle:'start',doublecircle:'end',cylinder:'database',diamond:'decision',diam:'decision',rounded:'card'};
       for(const v of vertices.values()) {
@@ -96,7 +97,7 @@ async function parse(source: string): Promise<DiagramModel> {
           n.image={src:v.img,width:v.assetWidth,height:v.assetHeight,position:v.pos??'b',constraint:v.constraint??'off'};
         }
         if(v.link||v.haveCallback)error('click / リンク操作は未対応です。');
-        if(v.styles.length||v.classes.length)warning('Mermaid の style / class の装飾は使わず、ArchMapのテーマで描画します。');
+        n.paint=resolvePaint(db.getClasses(),v.classes,v.styles,warning);
         if(v.labelType==='markdown' && /[*`]/.test(v.text || ''))warning('Markdownラベルの装飾は未対応です。文字列として表示します。');
         model.nodes.push(n);
       }
@@ -110,9 +111,10 @@ async function parse(source: string): Promise<DiagramModel> {
       if(metadata.view && metadata.view!=='er')error('erDiagram の view は er のみです。');
       const groups=db.getSubGraphs();
       const entityIds=new Map([...db.getEntities()].map(([name,e])=>[e.id,name]));
-      model.groups=groups.map(g=>({id:g.id,label:text(g.title),color:'blue',line:0,parent:groups.find(p=>p.nodes.includes(g.id))?.id}));
+      model.groups=groups.map(g=>({id:g.id,label:text(g.title),paint:resolvePaint(db.getClasses(),g.classes,g.cssStyles??[],warning),color:'blue',line:0,parent:groups.find(p=>p.nodes.includes(g.id))?.id}));
       for(const [name,entity] of db.getEntities()) {
         model.nodes.push({...node(name,text(entity.alias || entity.label), 'card',groups.find(g=>g.nodes.includes(entity.id)||g.nodes.includes(entity.label))?.id),
+          paint:resolvePaint(db.getClasses(),(entity.cssClasses??'').split(/\s+/),entity.cssStyles??[],warning),
           attributes:entity.attributes.map(a=>({name:text(a.name),type:text(a.type),keys:[...a.keys],comment:text(a.comment)}))});
       }
       const cards:Record<string,string>={ONLY_ONE:'one',ZERO_OR_ONE:'zero-one',ONE_OR_MORE:'many',ZERO_OR_MORE:'zero-many'};
@@ -120,7 +122,6 @@ async function parse(source: string): Promise<DiagramModel> {
         if(!cards[r.relSpec.cardA] || !cards[r.relSpec.cardB])error('この多重度は未対応です。');
         model.edges.push({from:entityIds.get(r.entityA)??r.entityA,to:entityIds.get(r.entityB)??r.entityB,label:text(r.roleA),style:r.relSpec.relType==='IDENTIFYING'?'solid':'dashed',bidirectional:false,arrow:'none',sourceMarker:cards[r.relSpec.cardB],targetMarker:cards[r.relSpec.cardA],line:0});
       }
-      if(db.getClasses().size || [...db.getEntities().values()].some(e=>e.cssStyles?.length))warning('ER図の装飾はArchMapのテーマに統一します。');
     } else if(diagram.type==='usecase') {
       const db=diagram.db as UsecaseDB;model.kind='usecase';direction(db.getDirection());
       if(metadata.view && metadata.view!=='usecase')error('usecase-beta の view は usecase のみです。');
@@ -213,7 +214,8 @@ async function parse(source: string): Promise<DiagramModel> {
       const data=db.getData();
       for(const v of data.nodes){
         if(v.shape==='noteGroup')continue;
-        if(v.isGroup){model.groups.push({id:v.id,label:text(v.label),color:'blue',parent:v.parentId,concurrent:v.shape==='divider',direction:stateDirections.get(v.id),line:0});continue;}
+        const paint=resolvePaint(db.getClasses(),v.cssClasses.split(/\s+/),v.cssStyles,warning);
+        if(v.isGroup){model.groups.push({id:v.id,label:text(v.label),paint,color:'blue',parent:v.parentId,concurrent:v.shape==='divider',direction:stateDirections.get(v.id),line:0});continue;}
         const shapes:Record<string,DiagramShape>={rect:'card',rectWithTitle:'card',roundedWithTitle:'card',stateStart:'start',stateEnd:'end',choice:'decision',fork:'fork',join:'join',note:'note'};
         if(!shapes[v.shape])error(`状態 ${v.id}: 形状 ${v.shape} は未対応です。`);
         const label=v.shape==='stateStart'?'開始':v.shape==='stateEnd'?'終了':text(v.label || v.id);
@@ -224,7 +226,7 @@ async function parse(source: string): Promise<DiagramModel> {
           n.group=data.nodes.find(target=>target.id===n.noteTarget)?.parentId;n.color='orange';
         }
         model.nodes.push(n);
-        if(v.cssStyles.length||v.cssCompiledStyles?.length)warning('状態の装飾はArchMapのテーマで描画します。');
+        n.paint=paint;
       }
       for(const e of data.edges)model.edges.push({from:e.start,to:e.end,label:text(e.label),style:e.pattern==='dashed'?'dashed':'solid',arrow:e.arrowhead==='none'?'none':'open',bidirectional:false,line:0});
       if(db.getLinks().size)error('状態の click / リンク操作は未対応です。');

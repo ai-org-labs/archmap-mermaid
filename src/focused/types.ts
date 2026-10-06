@@ -4,7 +4,9 @@ export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD" | "RL" | "BT";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
 export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join" | "modal" | "note";
+export interface DiagramPaint { fill?: string; stroke?: string; color?: string }
 export interface DiagramNode {
+  paint?: DiagramPaint;
   participantType?: string;
   links?: Array<{label:string;href:string}>;
   flowShape?: string;
@@ -25,7 +27,7 @@ export interface DiagramNode {
   color: DiagramColor;
   line: number;
 }
-export interface DiagramGroup { collapsed?: boolean; direction?: DiagramDirection; id: string; label: string; color: DiagramColor; line: number; parent?: string; concurrent?: boolean }
+export interface DiagramGroup { paint?: DiagramPaint; collapsed?: boolean; direction?: DiagramDirection; id: string; label: string; color: DiagramColor; line: number; parent?: string; concurrent?: boolean }
 export interface DiagramScreenAction { node: string; label: string; to?: string; state?: string; effect?: string; when?: string; close?: boolean; line: number }
 export interface DiagramEdge { central?: "source" | "target" | "both"; invisible?: boolean; thick?: boolean;  relationship?: "association" | "include" | "extend" | "generalization"; sourceMarker?: string; targetMarker?: string; arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { fill?: string; action: "alt" | "opt" | "loop" | "par" | "else" | "and" | "end" | "critical" | "option" | "break" | "rect"; label: string; afterEdge: number; line: number }

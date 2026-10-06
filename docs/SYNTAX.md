@@ -303,11 +303,29 @@ flowchart LR
   A[Web] --> B[API]
 ```
 
+## 背景色・枠線色・文字色
+
+flowchart / graph、stateDiagram-v2、erDiagram のノード・グループは、標準Mermaidの `style` / `classDef` / `class` による `fill`（背景）、`stroke`（枠線）、`color`（文字）を反映します。
+
+```mermaid
+flowchart LR
+  subgraph services[Services]
+    api[API]:::accent --> db[(Database)]
+  end
+  classDef accent fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e
+  style db fill:#ecfdf5,stroke:#059669,color:#064e3b
+  style services fill:#f0f9ff,stroke:#7dd3fc,color:#075985
+```
+
+優先順位は `classDef default` → 指定クラス（指定順）→ 個別 `style` です。指定しない色はArchMapの既定色を使用します。HEX・色名・rgb/hsl系の色に対応し、背景と枠線には `none` も使えます。SVG / PNG書き出しにも反映されます。アイコン主体表示では背景・枠線をノードのプレートに適用し、ブランドアイコン自体の配色は保持します。
+
+この指定はノード・グループ用です。キャンバス全体の背景、接続線の `linkStyle`、線幅などの任意CSSには対応しません。未対応プロパティや外部リソース参照を含む色指定には警告を表示します。
+
 ## 未対応と互換性
 
 この版はMermaid完全互換ではありません。`architecture-beta`、クラス図などの他の図種、clickコールバックなどの実行コードは対象外です。`click`操作は現時点ではエラーになります。
 
-`init` / frontmatterの `config` は読み込めます。`sequence.showSequenceNumbers` を反映し、その他のテーマ・レイアウト設定、CSS装飾・クラス・接続アニメーションは警告を表示して、ArchMapの表示に統一します。Markdownラベルの装飾は文字列として表示します。HTMLラベルを実行せず、外部アイコンを取得しません。構文上正しくても、この対応範囲にない機能は利用できません。
+`init` / frontmatterの `config` は読み込めます。`sequence.showSequenceNumbers` を反映し、その他のテーマ・レイアウト設定、上記以外のCSS装飾・接続アニメーションは警告を表示して、ArchMapの表示に統一します。Markdownラベルの装飾は文字列として表示します。HTMLラベルを実行せず、外部アイコンを取得しません。構文上正しくても、この対応範囲にない機能は利用できません。
 
 公式仕様: [Flowchart](https://mermaid.js.org/syntax/flowchart.html)、[Sequence](https://mermaid.js.org/syntax/sequenceDiagram.html)、[State](https://mermaid.js.org/syntax/stateDiagram.html)。同じ .mmd を他のMermaid環境でも開けますが、補助設定と描画結果は引き継がれません。
 
