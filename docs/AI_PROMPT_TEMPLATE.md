@@ -10,7 +10,7 @@
 1. Mermaidコードブロック1つで出力する。
 2. flowchart / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta を使用する。
 3. 関係・接続は標準Mermaidで記述する。架空の命令を作らない。
-4. レイヤー・画面遷移・アクティビティの表示は %% archmap: の view で選ぶ。
+4. レイヤー・画面遷移・アクティビティ・業務フロー（bpmn）の表示は %% archmap: の view で選ぶ。
 5. 補助設定は1文書1行の正しいJSON。不要な場合は省略する。
 6. Mermaidのsubgraph（入れ子・個別direction可）、sequenceのNote/box/alt/opt/loop/par/critical/break、stateのchoice/fork/join・同時状態・noteを用途に応じて使う。
 7. アイコンは既知の組み込みキーだけを使用し、不明なら省略する。
@@ -21,3 +21,5 @@
 以下は対応構文リファレンスです。
 
 配色が必要な場合は標準Mermaidの style / classDef / class で fill・stroke・color を指定する。ノード・グループに適用できる。色だけに意味を依存させず、ラベルも併用する。詳細な対応範囲は docs/SYNTAX.md を参照する。
+
+担当別の業務フローには view:bpmn と標準flowchartを使える。BPMN 2.0完全対応とは説明せず、対象要素・レーン制約は docs/SYNTAX.md の「業務フロー」を参照する。

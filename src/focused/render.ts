@@ -86,6 +86,10 @@ function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: D
   if (node.shape === 'database') shape = `<path d="M ${x} ${y + 15} C ${x} ${y - 4} ${x + w} ${y - 4} ${x + w} ${y + 15} L ${x + w} ${y + h - 15} C ${x + w} ${y + h + 5} ${x} ${y + h + 5} ${x} ${y + h - 15} Z" ${base}/><path d="M ${x} ${y + 15} C ${x} ${y + 35} ${x + w} ${y + 35} ${x + w} ${y + 15}" fill="none" stroke="${colors.border}" stroke-width="1.4"/>`;
   if(node.flowShape && !['rounded','stadium','diam','cyl','lin-cyl','fork'].includes(node.flowShape))shape=flowShapeSvg(node.flowShape,x,y,w,h,colors.fill,['sm-circ','f-circ','fr-circ'].includes(node.flowShape)?colors.ink:colors.border);
   if(node.flowShape==='lin-cyl')shape+=`<path d="M ${x} ${y+25} C ${x} ${y+45} ${x+w} ${y+45} ${x+w} ${y+25}" fill="none" stroke="${colors.border}"/>`;
+  if(kind==='bpmn') {
+    if(node.shape==='start'||node.shape==='end')shape=`<circle cx="${x+w/2}" cy="${y+h/2}" r="${w/2}" fill="${paint.fill??'#fff'}" stroke="${paint.stroke??colors.ink}" stroke-width="${node.shape==='end'?3.5:1.5}"/>`;
+    else if(node.shape==='card')shape=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" ${base}/>`;
+  }
   let header = '';
   if (kind === 'screens' && node.shape === 'card') header = `<path d="M ${x + 12} ${y} H ${x + w - 12} Q ${x + w} ${y} ${x + w} ${y + 12} V ${y + 27} H ${x} V ${y + 12} Q ${x} ${y} ${x + 12} ${y}" fill="${colors.fill}"/><path d="M ${x} ${y + 27} H ${x + w}" stroke="${colors.border}"/>${[0, 1, 2].map(i => `<circle cx="${x + 17 + i * 9}" cy="${y + 14}" r="2" fill="${colors.ink}" opacity=".5"/>`).join('')}`;
   const totalText = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0);
@@ -124,11 +128,16 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
 
 export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramRenderResult {
   const start = performance.now(), layout = computeDiagramLayout(model, options);
-  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram' }[model.kind]);
+  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram', bpmn:'Business process' }[model.kind]);
   const groups = layout.groups.map(({ group, x, y, width, height }) => {
     const preset = palette[group.color] ?? palette.gray;
     const paint=Object.fromEntries(Object.entries(group.paint??{}).filter(([key,value])=>safePaint(value,key==='color')));
     const colors={fill:paint.fill??preset.fill,border:paint.stroke??preset.border,ink:paint.color??preset.ink};
+    if(model.kind==='bpmn') {
+      const horizontal=model.direction==='LR'||model.direction==='RL',lines=wrapText(group.label,horizontal?132:width-32,12);
+      const header=horizontal?`<path d="M ${x+160} ${y} V ${y+height}" stroke="${colors.border}"/>`:`<path d="M ${x} ${y+Math.max(46,lines.length*17+24)} H ${x+width}" stroke="${colors.border}"/>`;
+      return `<g class="archmap-group archmap-bpmn-lane" data-group="${escapeXml(group.id)}"><rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${colors.fill}" fill-opacity="${paint.fill?1:.32}" stroke="${colors.border}"/>${header}${textLines(lines,x+16,horizontal?y+height/2-(lines.length-1)*17/2+4:y+24,12,17,colors.ink,600)}</g>`;
+    }
     return `<g class="archmap-group" data-group="${escapeXml(group.id)}"${group.concurrent?' data-concurrent="true"':''}><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${colors.fill}" fill-opacity="${paint.fill?1:group.concurrent?0:.52}" stroke="${colors.border}" stroke-dasharray="5 4"/>${textLines(wrapText(group.concurrent?'Concurrent region':group.label+(group.collapsed?' ⋯':''), width - 34, 12), x + 16, y + 24, 12, 17, colors.ink, 600)}</g>`;
   }).join('');
   const lifelines = model.kind === 'sequence' ? layout.nodes.map(n => `<path class="archmap-lifeline" d="M ${n.x + n.width / 2} ${n.y + n.height} V ${layout.destructions?.find(d=>d.node===n.node.id)?.y ?? layout.height - 32}" fill="none" stroke="#cbd5e1" stroke-width="1.3" stroke-dasharray="5 6"/>`).join('') : '';

@@ -10,7 +10,7 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## 機能
 
-システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケースの7種類。
+システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケース・業務フロー（BPMN風）の8種類。
 入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta の対応サブセットです。
 独自DSLは採用せず、必要な表示設定だけ `%% archmap: JSON` コメントに記述します。
 互換範囲は [docs/SYNTAX.md](docs/SYNTAX.md) に列挙しています。
@@ -33,7 +33,26 @@ GitHub ActionsはmainへのpushでGitHub Pagesに公開します。
 
 ## ブラウザーAPI
 
-`npm run build:library` が `dist/archmap-mermaid.js` を生成します。npm公開はしていません。
+npmパッケージは `@archmap/mermaid` です。Mermaidとアイコンを同梱したブラウザー向けES Moduleで、実行時の追加npm依存はありません。型定義も含みます。
+
+```sh
+npm install @archmap/mermaid
+```
+
+バンドラーでは `import { renderMermaid } from '@archmap/mermaid'` を使用します。CDNではバージョンを固定して読み込みます。
+
+```html
+<div id="diagram"></div>
+<script type="module">
+  import { renderMermaid } from 'https://cdn.jsdelivr.net/npm/@archmap/mermaid@0.1.5/dist/archmap-mermaid.js';
+  const { svg } = await renderMermaid('flowchart LR\nA[Web] --> B[API]');
+  document.querySelector('#diagram').innerHTML = svg;
+</script>
+```
+
+UNPKGでは `https://unpkg.com/@archmap/mermaid@0.1.5/dist/archmap-mermaid.js` を利用できます。ブラウザーのDOMが必要です。SSR/Node.jsだけでの描画や、通常の `<script>` によるグローバル変数の提供は対象外です。
+
+ローカルビルドには `npm run build:library` を使用します。
 
 ```js
 import { renderMermaid } from './dist/archmap-mermaid.js';

@@ -1,5 +1,5 @@
 /** The deliberately small ArchMap diagram model. Positions use a one-based grid. */
-export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase"] as const;
+export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn"] as const;
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD" | "RL" | "BT";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";

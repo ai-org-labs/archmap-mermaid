@@ -28,6 +28,7 @@ const icons: Record<string, string> = {
   layers: '<path d="m2 6 8-4 8 4-8 4-8-4Zm0 4 8 4 8-4M2 14l8 4 8-4"/>',
   sequence: '<path d="M4 2v16M16 2v16M4 6h12m-3-3 3 3-3 3M16 14H4m3-3-3 3 3 3"/>',
   screens: '<rect x="2" y="3" width="6" height="11" rx="1"/><rect x="12" y="6" width="6" height="11" rx="1"/><path d="M8 9h4M4 11h2m8 3h2"/>',
+  bpmn: '<rect x="2" y="2" width="20" height="18" rx="1"/><path d="M2 11h20M7 2v18M10 6h7M12 15h7"/>',
   activity: '<circle cx="4" cy="4" r="2"/><path d="M4 6v4h6m0-4 4 4-4 4-4-4 4-4Zm0 8v3h5"/><circle cx="17" cy="17" r="2"/>',
 };
 const icon = (name: string, cls = "") => `<svg class="icon ${cls}" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.code}</svg>`;

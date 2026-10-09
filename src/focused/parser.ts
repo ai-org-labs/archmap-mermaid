@@ -14,7 +14,7 @@ import { getIcon } from '../icons.js';
 
 export const DIAGRAM_LIMITS = {sourceLength:500_000,nodes:400,groups:200,edges:1000,gridCoordinate:400,groupDepth:8} as const;
 const colors = ['blue','green','orange','purple','gray'];
-const kinds = ['system','layers','sequence','screens','activity','er','usecase'];
+const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn'];
 type RecordValue = Record<string, unknown>;
 const record = (x: unknown): x is RecordValue => !!x && typeof x === 'object' && !Array.isArray(x);
 // Mermaid's diagram databases/configuration are stateful; serialize all parsing,
@@ -47,8 +47,8 @@ async function parse(source: string): Promise<DiagramModel> {
     if(metadata.view!==undefined && !kinds.includes(String(metadata.view)))error('view が不正です。');
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     let rendererConfig:RecordValue={};
-    let mermaidSource=source;
-    const front=/^\s*---\s*\n([\s\S]*?)\n---/.exec(source);
+    let mermaidSource=source.replace(/^\s*%%\s*archmap:.*$/gm,'');
+    const front=/^\s*---\s*\n([\s\S]*?)\n---/.exec(mermaidSource);
     if(front){
       const v=load(front[1],{schema:JSON_SCHEMA});
       if(!record(v))error('frontmatter はオブジェクトで指定してください。');
@@ -59,7 +59,7 @@ async function parse(source: string): Promise<DiagramModel> {
         else if(record(v.config))rendererConfig=v.config;
         if(Object.keys(v).some(k=>!['title','config'].includes(k)))warning('frontmatter の追加属性はArchMapの表示には使用しません。');
       }
-      mermaidSource=source.slice(front[0].length);
+      mermaidSource=mermaidSource.slice(front[0].length);
     }
     mermaidSource=mermaidSource.replace(/%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}%%/g,(_,raw:string)=>{
       const value=load(raw,{schema:JSON_SCHEMA});if(!record(value))error('init は設定オブジェクトで指定してください。');else rendererConfig={...rendererConfig,...value};return '';
@@ -77,7 +77,7 @@ async function parse(source: string): Promise<DiagramModel> {
     if(diagram.type.startsWith('flowchart')) {
       const db=diagram.db as FlowDB;
       model.kind=(metadata.view as DiagramKind) || 'system'; direction(db.getDirection());
-      if(!['system','layers','screens','activity'].includes(model.kind))error('flowchart の view は system / layers / screens / activity です。');
+      if(!['system','layers','screens','activity','bpmn'].includes(model.kind))error('flowchart の view は system / layers / screens / activity / bpmn です。');
       const groups=db.getSubGraphs(); const vertices=db.getVertices();
 
       const parent=(id:string)=>groups.find(g=>g.nodes.includes(id))?.id;
@@ -256,6 +256,20 @@ async function parse(source: string): Promise<DiagramModel> {
         if(Object.keys(action).some(k=>!['node','label','state','effect','when','close'].includes(k))||['state','effect','when'].some(k=>action[k]!==undefined&&(typeof action[k]!=='string'||!String(action[k]).trim()))||(action.close!==undefined&&(action.close!==true||owner.shape!=='modal'))||['state','effect','close'].filter(k=>action[k]!==undefined).length>1){error('操作の state / effect / when / close の値が不正です。');continue;}
         model.screenActions.push({node:action.node,label:action.label,state:action.state as string|undefined,effect:action.effect as string|undefined,when:action.when as string|undefined,close:action.close as boolean|undefined,line:0});
       }}
+    }
+    if(model.kind==='bpmn') {
+      if(model.groups.some(g=>g.parent||g.collapsed))error('bpmn の subgraph は入れ子・折りたたみなしの担当レーンとして指定してください。');
+      if(model.groups.some(g=>g.direction))warning('bpmn は図全体の方向で担当レーンを配置します。レーン内の direction は使用しません。');
+      if(model.nodes.some(n=>n.at))error('bpmn は担当レーンを自動配置するため at は使用できません。');
+      for(const n of model.nodes) {
+        if(n.image || !['rect','rounded','stadium','circle','dbl-circ','diam'].includes(n.flowShape??''))error(`bpmn のノード ${n.id}: 処理（四角）、開始（丸）、終了（二重丸）、分岐（ひし形）を使用してください。`);
+        n.shape=n.flowShape==='circle'?'start':n.flowShape==='dbl-circ'?'end':n.flowShape==='diam'?'decision':'card';
+        if(n.shape==='card')n.flowShape='rounded';
+        if(n.shape==='start'||n.shape==='end')n.flowShape='circle';
+      }
+      if(model.edges.some(e=>model.groups.some(g=>g.id===e.from||g.id===e.to)))error('bpmn の線は担当レーンではなく、レーン内の処理・イベントへ接続してください。');
+      if(model.edges.some(e=>e.style==='dashed'||e.arrow==='none'||e.bidirectional||e.sourceMarker||e.targetMarker||e.thick))warning('bpmn の特殊な線は元のMermaid表現を維持します。メッセージフロー等のBPMN上の意味は推定しません。');
+      for(const e of model.edges)if(e.style==='solid'&&e.arrow==='open'&&!e.targetMarker)e.arrow='filled';
     }
     if(model.nodes.length>400||model.groups.length>200||model.edges.length>1000||(model.screenActions?.length||0)>1000)error('上限は400ノード・200グループ・1,000接続・1,000操作です。');
     const ids=new Set([...model.nodes.map(n=>n.id), ...model.groups.map(g=>g.id)]),cells=new Set<string>();

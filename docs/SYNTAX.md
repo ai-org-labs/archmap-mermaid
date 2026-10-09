@@ -33,7 +33,7 @@ ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自
 | Treemap／ツリーマップ | × | — |
 | ZenUML | × | — |
 
-画面遷移・アクティビティ・レイヤー表示はFlowchart／Stateを使ったArchMapのビューです。詳しい対応構文と表示上の制約は、以下の各節を参照してください。
+業務フロー（BPMN風）・画面遷移・アクティビティ・レイヤー表示はFlowchart／Stateを使ったArchMapのビューです。詳しい対応構文と表示上の制約は、以下の各節を参照してください。
 
 ## 図の選び方
 
@@ -45,6 +45,7 @@ ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自
 | レイヤースタック図 | `flowchart TB` | `layers` |
 | シーケンス図 | `sequenceDiagram` | 不要 |
 | 画面遷移図 | `stateDiagram-v2` または `flowchart LR` | `screens`（状態図では既定） |
+| 業務フロー（BPMN風） | `flowchart` / `graph` | `bpmn` |
 | アクティビティ図 | `stateDiagram-v2` または `flowchart TB` | `activity` |
 
 図の基本情報・接続はMermaid標準記法で書きます。`%% archmap:` は任意の表示設定で、他のMermaidツールでは通常のコメントとして無視されます。モーダル・画面内操作・配置指定はArchMap Mermaid固有の表示です。
@@ -194,6 +195,42 @@ PNG / JPEG / WebP / GIF / SVGのURLや画像data URLを読み込み、静止画�
 
 ブラウザーAPIの `renderMermaid` は画像読込と埋め込みまで行います。低レベルの同期 `renderDiagram` を直接使う場合は、先に `await prepareDiagramImages(model)` を呼んでください。
 
+## 業務フロー（BPMN風の担当レーン）
+
+先頭行に `%% archmap: {"view":"bpmn"}` を置き、その下を標準Mermaidの flowchart / graph で記述します。先頭の補助設定の直後にタイトル用frontmatterを置くこともできます。
+
+```mermaid
+%% archmap: {"view":"bpmn"}
+flowchart LR
+  subgraph customer[顧客]
+    start((開始)) --> order[注文する]
+    receive[商品を受け取る] --> finish(((完了)))
+  end
+  subgraph shop[店舗]
+    accept[注文を受け付ける] --> check{在庫あり?}
+    check -->|はい| ship[発送する]
+    check -->|いいえ| notify[欠品を通知する]
+  end
+  order --> accept
+  ship --> receive
+  notify --> finish
+```
+
+| Mermaidの記述 | このビューでの表示 |
+|---|---|
+| `subgraph ID[担当名]` | 担当レーン。宣言順に配置し、処理方向の長さをそろえる |
+| `A[処理]` / `A(処理)` / `A([処理])` | 角丸の処理ボックス |
+| `A((開始))` | 細い円の開始イベント |
+| `A(((終了)))` | 太い円の終了イベント |
+| `A{条件}` | ひし形の分岐。分岐条件は線のラベルへ |
+| `A --> B` | 処理の順序を表す実線・塗りつぶし矢印 |
+
+LR / RLは横方向に進む水平レーン、TB / TD / BTは縦方向に進む垂直レーンです。空レーンも残し、レーン外のノードは最後の帯域に枠なしで配置します。分岐や戻り線は削除しません。色指定は `style` / `classDef` が使えます。
+
+このビューは1つの業務を担当別に読むためのBPMN風表示であり、BPMN 2.0 XMLの入出力・実行エンジンではありません。プール、境界イベント、タイマー、メッセージイベント、並列ゲートウェイなどの正式なBPMN要素は対象外です。破線等はMermaidとして維持し、メッセージフローなどの意味を推定しない旨を警告します。
+
+初期版ではレーンの入れ子・折りたたみ、レーン自体への接続、手動配置 `at`、上表以外のノード形状はエラーにします。レーン内の `direction` は警告し、図全体の方向を使います。レーンをまたぐ線は処理同士へ接続してください。
+
 ## アクティビティと並列分岐
 
 ```mermaid
@@ -282,7 +319,7 @@ flowchart LR
 
 | キー | 値と意味 |
 | --- | --- |
-| `view` | `system` / `layers` / `screens` / `activity` / `er` / `usecase`。シーケンスは宣言から判定 |
+| `view` | `system` / `layers` / `screens` / `activity` / `er` / `usecase` / `bpmn`。シーケンスは宣言から判定 |
 | `style` | `cards`（既定）/ `icons`。アイコン主体表示は system / layers 用 |
 | `nodes.ID.icon` | 組み込みアイコン一覧のキー |
 | `nodes.ID.description` | 説明の文字列 |

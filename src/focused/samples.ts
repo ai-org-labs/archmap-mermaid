@@ -152,4 +152,24 @@ usecase-beta
   Place ..> : include Pay
   Coupon ..> : extend Place
   note for Pay "決済が成功した場合に注文を確定する"`},
+{id:'bpmn',title:'業務フロー（BPMN風）',subtitle:'担当レーンに処理・イベント・分岐を配置。',source:`%% archmap: {"view":"bpmn"}
+---
+title: 注文から発送まで
+---
+flowchart LR
+  subgraph customer[顧客]
+    start((開始)) --> order[注文する]
+    receive[商品を受け取る] --> finish(((完了)))
+  end
+  subgraph shop[店舗]
+    accept[注文を受け付ける] --> stock{在庫あり?}
+    stock -->|はい| ship[発送する]
+    stock -->|いいえ| notify[欠品を通知する]
+  end
+  order --> accept
+  ship --> receive
+  notify --> finish
+  classDef event fill:#ecfdf5,stroke:#059669,color:#064e3b
+  class start,finish event
+`},
 ];

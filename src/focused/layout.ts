@@ -84,7 +84,7 @@ export function entityContent(node: DiagramNode) {
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
   if(node.image) {const im=imageSize(node),width=Math.max(180,im.width+40);return {width,height:im.height+48+wrapText(node.label,width-40).length*21+(node.description?wrapText(node.description,width-40,BODY_SIZE).length*17+8:0)};}
   if(node.attributes) {const e=entityContent(node);return {width:e.width,height:e.height};}
-  const width = kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
+  const width = kind === 'bpmn' ? 180 : kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
   const text = nodeText(node, kind, width);
   const contentHeight = text.title.length * 21 + (text.description.length ? 9 + text.description.length * 17 : 0) + (kind==='sequence'?(node.links??[]).reduce((h,l)=>h+wrapText(l.label,width-24,12).length*17+8,0):0);
   const height = Math.max(kind === 'sequence' ? 44 : kind === 'screens' ? 114 : 88, contentHeight + (kind === 'sequence' ? 20 : 36) + text.header);
@@ -146,7 +146,7 @@ function ranks(model: DiagramModel): Map<string, number> {
 type Cell = { col: number; row: number };
 type Side = 'left' | 'right' | 'top' | 'bottom';
 function usesDirectedGroups(model: DiagramModel): boolean {
-  return !['sequence','layers','usecase'].includes(model.kind) && model.groups.some(g=>g.direction) && !model.nodes.some(n=>n.at);
+  return !['sequence','layers','usecase','bpmn'].includes(model.kind) && model.groups.some(g=>g.direction) && !model.nodes.some(n=>n.at);
 }
 /** Lay out nested containers as units; a child's direction never rotates its parent. */
 function directedGroupCells(model: DiagramModel): Map<string,Cell> {
@@ -177,7 +177,36 @@ function directedGroupCells(model: DiagramModel): Map<string,Cell> {
   return build(undefined,model.direction).cells;
 }
 
+/** BPMN view: global process ranks, stable responsibility bands. Back edges
+ * are excluded only from ranking; every connection remains in the rendered graph. */
+function bpmnCells(model: DiagramModel): Map<string,Cell> {
+  const active=new Set<string>(),visited=new Set<string>(),back=new Set<DiagramModel['edges'][number]>();
+  const visit=(id:string)=>{
+    visited.add(id);active.add(id);
+    for(const edge of model.edges.filter(e=>e.from===id)) {
+      if(active.has(edge.to))back.add(edge);
+      else if(!visited.has(edge.to))visit(edge.to);
+    }
+    active.delete(id);
+  };
+  model.nodes.forEach(n=>{if(!visited.has(n.id))visit(n.id);});
+  const depth=ranks({...model,edges:model.edges.filter(e=>!back.has(e))});
+  const horizontal=model.direction==='LR'||model.direction==='RL';
+  const cells=new Map<string,Cell>();let offset=0;
+  for(const lane of [...model.groups.map(g=>g.id),undefined]) {
+    const members=model.nodes.filter(n=>n.group===lane),counts=new Map<number,number>();
+    for(const n of members) {
+      const along=depth.get(n.id)??0,across=counts.get(along)??0;
+      counts.set(along,across+1);
+      cells.set(n.id,horizontal?{col:along,row:offset+across}:{col:offset+across,row:along});
+    }
+    if(members.length)offset+=Math.max(...counts.values());
+  }
+  return cells;
+}
+
 function placeCells(model: DiagramModel): Map<string, Cell> {
+  if(model.kind==='bpmn')return bpmnCells(model);
   const cells = new Map<string, Cell>(), occupied = new Set<string>();
   const reserve = (node: DiagramNode, col: number, row: number) => {
     while (occupied.has(`${col},${row}`)) row++;
@@ -474,7 +503,7 @@ export function computeDiagramLayout(model: DiagramModel, options: DiagramLayout
   const baseline = layoutWithSpacing(model);
   // Respect authored coordinates and diagram-specific chronology/layer geometry.
   // Limit the extra routing work: at most two candidates for modest graphs.
-  if (options.balance === 'off' || ['sequence','layers'].includes(model.kind) || model.nodes.some(n => n.at) || model.nodes.length > 80 || model.edges.length > 60) return baseline;
+  if (options.balance === 'off' || ['sequence','layers','bpmn'].includes(model.kind) || model.nodes.some(n => n.at) || model.nodes.length > 80 || model.edges.length > 60) return baseline;
   const ratio = baseline.width / baseline.height;
   const deviation = (l: DiagramLayout) => Math.abs(Math.log(l.width / l.height / target));
   if (deviation(baseline) < Math.log(1.8)) return baseline;
@@ -520,6 +549,10 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
   const usesIcon = (node: DiagramNode) => !node.image && iconStyle && (node.shape === 'card' || node.shape === 'database');
   const cells = placeCells(model), sizes = model.nodes.map(node => {
+    if(model.kind==='bpmn' && (node.shape==='start'||node.shape==='end')) {
+      const text=nodeText(node,model.kind,100);const diameter=Math.max(100,text.title.length*21+text.description.length*17+48);
+      return {width:diameter,height:diameter};
+    }
     if (node.shape === 'fork' || node.shape === 'join') {
       const text = junctionText(node);
       return (model.direction === 'TD' || model.direction === 'BT') ? { width: Math.max(240, 120 + 2 * (24 + text.width)), height: Math.max(12, text.height) } : { width: 240, height: 120 + 2 * (24 + text.height) };
@@ -535,23 +568,23 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     const occupied=new Set(model.nodes.filter(n=>n.at).map(n=>{const c=cells.get(n.id)!;return `${c.col},${c.row}`;}));
     for(const n of model.nodes)if(!n.at){const c=cells.get(n.id)!;c[axis]=max-c[axis];while(occupied.has(`${c.col},${c.row}`))c[axis==='col'?'row':'col']++;occupied.add(`${c.col},${c.row}`);}
   }
-  const maxW = Math.max(iconStyle ? 160 : 240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height));
+  const maxW = Math.max(iconStyle ? 160 : model.kind==='bpmn'?180:240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height), ...(model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?model.groups.map(g=>wrapText(g.label,132,12).length*17+32):[]));
   const maxLabel = Math.max(0, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
   const maxDegree = Math.max(0, ...degree.values());
   const nesting = Math.max(1, ...model.groups.map(group => groupAncestors(model, group.id).length));
   const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
-  const baseGapX = Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
+  const baseGapX = model.kind==='bpmn'?Math.max(90,maxLabel+32):Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
   const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
   // Activity flows often have many short rows. Reserve space for labels and
   // branching without imposing the system diagram's 132px corridor on each step.
-  const baseGapY = Math.max(screenGap, model.kind === 'activity'
+  const baseGapY = Math.max(screenGap, ['activity','bpmn'].includes(model.kind)
     ? Math.max(64, model.groups.length ? groupHeader + 32 : 0, Math.min(maxDegree, 16) * 8 + 32)
     : iconStyle ? Math.max(88, groupHeader + 40, Math.min(maxDegree, 16) * 8 + 48) : Math.max(132, groupHeader + 64, Math.min(maxDegree, 16) * 10 + 68));
   // Never shrink nodes, labels or heading clearance. Only routing corridors vary.
   const gapX = Math.max(baseGapX * spacing.x, Math.min(baseGapX, Math.max(64, screenGap, maxLabel + 24, nesting > 1 ? nesting * 44 + 48 : 0)));
   const gapY = Math.max(baseGapY * spacing.y, Math.min(baseGapY, Math.max(48, screenGap, model.groups.length ? groupHeader + 32 : 0)));
-  const marginX = Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
+  const marginX = (model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?160:0)+Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
@@ -576,8 +609,25 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const groupLabels: DiagramBox[] = [];
   const groupOrder = orderedGroups(model);
   const groupBoxes = new Map<string, DiagramLayout['groups'][number]>();
+  if(model.kind==='bpmn') {
+    const horizontal=model.direction==='LR'||model.direction==='RL';
+    const minX=Math.min(...nodes.map(n=>n.x)),maxX=Math.max(...nodes.map(n=>n.x+n.width));
+    const minY=Math.min(...nodes.map(n=>n.y)),maxY=Math.max(...nodes.map(n=>n.y+n.height));
+    for(const group of groupOrder) {
+      const members=nodes.filter(n=>n.node.group===group.id);if(!members.length)continue;
+      const indexes=members.map(n=>cells.get(n.node.id)!);
+      const first=Math.min(...indexes.map(c=>horizontal?c.row:c.col)),last=Math.max(...indexes.map(c=>horizontal?c.row:c.col));
+      const x=horizontal?minX-182:marginX+first*pitchX-24;
+      const y=horizontal?rowY[first]!-24:minY-groupHeader;
+      const width=horizontal?maxX-x+24:(last-first)*pitchX+maxW+48;
+      const height=horizontal?rowY[last]!+maxH+24-y:maxY-y+24;
+      groupBoxes.set(group.id,{group,x,y,width,height});
+      const lines=wrapText(group.label,horizontal?132:width-32,12);
+      groupLabels.push({x:x+16,y:horizontal?y+height/2-lines.length*17/2:y+9,width:horizontal?132:width-32,height:lines.length*17+5});
+    }
+  }
   // Build from children upward, then paint parents before their children.
-  for (const group of [...groupOrder].reverse()) {
+  for (const group of model.kind==='bpmn'?[]:[...groupOrder].reverse()) {
     const members: DiagramBox[] = [...nodes.filter(n => n.node.group === group.id), ...groupOrder.filter(child => child.parent === group.id).flatMap(child => groupBoxes.has(child.id) ? [groupBoxes.get(child.id)!] : [])];
     if (!members.length) continue;
     const x = Math.min(...members.map(n => n.x)) - 22;
@@ -604,7 +654,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const connectionKey = (edge: DiagramModel['edges'][number]) => `${edge.from}:${edge.to}:${edge.style === 'solid' ? 0 : 1}:${edge.label}`;
   const specs = [...model.edges].sort((a, b) => compareKey(connectionKey(a), connectionKey(b))).flatMap(edge => {
     const a = nodeById.get(edge.from), b = nodeById.get(edge.to); if (!a || !b) return [];
-    const localDirection=groupAncestors(model,a.node.group).filter(id=>groupAncestors(model,b.node.group).includes(id)).map(id=>model.groups.find(g=>g.id===id)?.direction).find(Boolean)??model.direction;
+    const localDirection=model.kind==='bpmn'?model.direction:groupAncestors(model,a.node.group).filter(id=>groupAncestors(model,b.node.group).includes(id)).map(id=>model.groups.find(g=>g.id===id)?.direction).find(Boolean)??model.direction;
     let [sa, sb] = sidePair(a, b, model.kind === 'layers' ? 'TD' : localDirection);
     if (containsEndpoint(a,b)) sa = sb = 'right';
     if (containsEndpoint(b,a)) sa = sb = 'right';

@@ -1,7 +1,6 @@
 {
   "name": "@archmap/mermaid",
-  "version": "0.1.4",
-  "private": true,
+  "version": "0.1.5",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
@@ -10,13 +9,9 @@
     "test": "vitest run",
     "build": "npm run typecheck && vite build -c vite.config.site.ts && node tools/build-standalone.mjs",
     "preview": "vite preview -c vite.config.site.ts --host 127.0.0.1",
-    "build:library": "vite build -c vite.config.library.ts",
-    "verify": "npm run typecheck && npm test && npm run build && npm run build:library && node tools/verify-site.mjs"
-  },
-  "dependencies": {
-    "@archmap/icons": "file:vendor/archmap-icons-0.1.3.tgz",
-    "js-yaml": "^4.3.2",
-    "mermaid": "12.0.0"
+    "build:library": "vite build -c vite.config.library.ts && tsc -p tsconfig.library.json && node tools/bundle-licenses.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run build:library && node tools/verify-site.mjs",
+    "prepack": "npm run build:library"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
@@ -24,9 +19,43 @@
     "jsdom": "^26.1.0",
     "typescript": "^5.6.3",
     "vite": "^8.3.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "@archmap/icons": "file:vendor/archmap-icons-0.1.3.tgz",
+    "js-yaml": "^4.3.2",
+    "mermaid": "12.0.0"
   },
   "overrides": {
     "lodash-es": "4.18.1"
+  },
+  "description": "Readable Mermaid diagrams with ArchMap layouts, routing and BPMN-style lanes. Browser ESM bundle.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ai-org-labs/archmap-mermaid.git"
+  },
+  "homepage": "https://ai-org-labs.github.io/archmap-mermaid/",
+  "files": [
+    "dist",
+    "docs/SYNTAX.md",
+    "docs/AI_PROMPT_TEMPLATE.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "main": "./dist/archmap-mermaid.js",
+  "module": "./dist/archmap-mermaid.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/archmap-mermaid.js",
+      "default": "./dist/archmap-mermaid.js"
+    },
+    "./dist/archmap-mermaid.js": "./dist/archmap-mermaid.js",
+    "./package.json": "./package.json"
+  },
+  "unpkg": "./dist/archmap-mermaid.js",
+  "jsdelivr": "./dist/archmap-mermaid.js",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
