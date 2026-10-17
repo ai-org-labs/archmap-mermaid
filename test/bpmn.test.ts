@@ -22,6 +22,24 @@ describe('BPMN-style lane projection from standard Mermaid',()=>{
     expect(d.querySelector('[data-node="finish"] circle')?.getAttribute('stroke-width')).toBe('3.5');
     expect(d.querySelectorAll('.archmap-bpmn-lane')).toHaveLength(2);
   });
+  it.each(['LR','RL','TB','BT'])('aligns responsibility handoffs without an extra rank in %s',async direction=>{
+    const m=await parseDiagram(`%% archmap: {"view":"bpmn"}
+flowchart ${direction}
+subgraph customer[Customer]
+A[Order]
+end
+subgraph shop[Shop]
+B[Accept] --> C[Ship]
+end
+A --> B`);
+    const l=renderDiagram(m).layout;
+    const [a,b,c]=['A','B','C'].map(id=>l.nodes.find(n=>n.node.id===id)!);
+    const axis=direction==='LR'||direction==='RL'?'x':'y';
+    expect(a[axis]+a[axis==='x'?'width':'height']/2).toBe(b[axis]+b[axis==='x'?'width':'height']/2);
+    expect(c[axis]).not.toBe(b[axis]);
+    expect(l.edges).toHaveLength(2);
+    expect(l.edges.find(e=>e.edge.from==='A')!.points).toHaveLength(2);
+  });
   it('retains loop, self-loop and parallel branches without overlapping nodes',async()=>{
     const m=await parseDiagram('%% archmap: {"view":"bpmn"}\nflowchart LR\nsubgraph team[Team]\nA[Review] --> B{OK?}\nB -->|retry| A\nB --> C[Notify]\nB --> D[Record]\nC --> C\nend');
     expect(m.diagnostics).toEqual([]);

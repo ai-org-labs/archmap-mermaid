@@ -25,6 +25,10 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 [利用手順](docs/AGENT_USAGE.md)に沿って、自然言語や既存Mermaidから図を作成・修正できます。
 共通手順は [agents/diagram-designer.md](agents/diagram-designer.md)、リポジトリの入口は [AGENTS.md](AGENTS.md)、Copilot用は [.github/agents/archmap-designer.agent.md](https://github.com/ai-org-labs/archmap-mermaid/blob/main/.github/agents/archmap-designer.agent.md) です。
 
+## Codexプラグイン
+
+図作成スキルとローカルSVG / PNG生成機能をまとめたプラグインを用意しています。`npm run build:plugin` で配布物を生成します。`codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.6` → `codex plugin add archmap-mermaid@archmap` で導入できます。Chromium・APIキーは不要です。初回セットアップと利用手順は [CODEX_PLUGIN.md](docs/CODEX_PLUGIN.md) を参照してください。
+
 ## 開発
 
 Node.js 22.12以上。`npm ci` の後、`npm run dev`。
@@ -70,3 +74,7 @@ MermaidパーサーのデータベースAPIに依存する箇所は `src/focused
 
 Apache-2.0。描画エンジン・サイトの基盤はArchMapから派生しています。
 Mermaidほかの依存・アイコンの帰属は `THIRD_PARTY_NOTICES.md` を参照してください。
+
+### SVG / PNG の可読性
+
+出力画像そのものを読みやすくするため、通常の処理は白いカード、グループは淡い背景、見出し・接続線は濃い色で描画します。標準 Mermaid の `style` / `classDef` による指定色が優先されます。BPMN ビューでは担当レーンを跨ぐ受け渡しを同じ進行位置に揃え、不要な横幅を抑えます。専用の閲覧モードや追加構文は不要です。

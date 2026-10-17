@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "archmap-mermaid",
+  "version": "0.1.0",
+  "description": "Create and update readable architecture diagrams during development; render local Mermaid to SVG and PNG.",
+  "author": {
+    "name": "ai-org-labs"
+  },
+  "repository": "https://github.com/ai-org-labs/archmap-mermaid",
+  "license": "Apache-2.0",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ArchMap Mermaid",
+        "shortDescription": "開発中の設計図を作成・更新し、SVG / PNGで表示",
+        "developerName": "ai-org-labs",
+        "category": "Developer Tools"
+      }
+    }
+  }
+}

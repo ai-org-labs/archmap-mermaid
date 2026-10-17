@@ -1,6 +1,6 @@
 {
   "name": "@archmap/mermaid",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
@@ -11,7 +11,9 @@
     "preview": "vite preview -c vite.config.site.ts --host 127.0.0.1",
     "build:library": "vite build -c vite.config.library.ts && tsc -p tsconfig.library.json && node tools/bundle-licenses.mjs",
     "verify": "npm run typecheck && npm test && npm run build && npm run build:library && node tools/verify-site.mjs",
-    "prepack": "npm run build:library"
+    "prepack": "npm run build:library",
+    "build:plugin": "npm run build:library && node tools/build-plugin.mjs",
+    "test:plugin": "node tools/test-plugin.mjs"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

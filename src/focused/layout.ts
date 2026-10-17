@@ -1,10 +1,11 @@
+import {OUTPUT_THEME} from './theme.js';
 import {flowShapePort} from './flow-shapes.js';
 import {imageSize} from './images.js';
 import { groupAncestors, orderedGroups } from './groups.js';
 import type { DiagramBox, DiagramLayoutOptions, DiagramLayout, DiagramLayoutEdge, DiagramLayoutNode, DiagramModel, DiagramNode, DiagramPoint, DiagramScreenContent } from "./types.js";
 
 export const FONT = 'Inter, "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-export const TITLE_SIZE = 15;
+export const TITLE_SIZE = 16;
 export const BODY_SIZE = 12;
 export const LABEL_SIZE = 12;
 /** Deliberately conservative metrics; no browser, font download, or canvas is needed. */
@@ -115,7 +116,7 @@ function tidy(points: DiagramPoint[]): DiagramPoint[] {
 function length(points: DiagramPoint[]): number {
   return points.slice(1).reduce((sum, point, i) => sum + Math.abs(point.x - points[i]!.x) + Math.abs(point.y - points[i]!.y), 0);
 }
-function ranks(model: DiagramModel): Map<string, number> {
+function ranks(model: DiagramModel, weight: (edge: DiagramModel['edges'][number]) => number = () => 1): Map<string, number> {
   // Stable strongly connected components keep cycles bounded and preserve DAG depth.
   const adjacency = new Map(model.nodes.map(n => [n.id, [] as string[]]));
   for (const edge of model.edges) if (edge.from !== edge.to && adjacency.has(edge.from) && adjacency.has(edge.to)) adjacency.get(edge.from)!.push(edge.to);
@@ -138,7 +139,7 @@ function ranks(model: DiagramModel): Map<string, number> {
   function getDepth(c: number): number {
     if (depth.has(c)) return depth.get(c)!;
     let value = 0;
-    for (const edge of model.edges) if (componentOf.get(edge.to) === c && componentOf.get(edge.from) !== c && componentOf.has(edge.from)) value = Math.max(value, getDepth(componentOf.get(edge.from)!) + 1);
+    for (const edge of model.edges) if (componentOf.get(edge.to) === c && componentOf.get(edge.from) !== c && componentOf.has(edge.from)) value = Math.max(value, getDepth(componentOf.get(edge.from)!) + weight(edge));
     depth.set(c, value); return value;
   }
   return new Map(model.nodes.map(n => [n.id, getDepth(componentOf.get(n.id)!)]));
@@ -190,7 +191,8 @@ function bpmnCells(model: DiagramModel): Map<string,Cell> {
     active.delete(id);
   };
   model.nodes.forEach(n=>{if(!visited.has(n.id))visit(n.id);});
-  const depth=ranks({...model,edges:model.edges.filter(e=>!back.has(e))});
+  const owners=new Map(model.nodes.map(n=>[n.id,n.group]));
+  const depth=ranks({...model,edges:model.edges.filter(e=>!back.has(e))},e=>owners.get(e.from)===owners.get(e.to)?1:0);
   const horizontal=model.direction==='LR'||model.direction==='RL';
   const cells=new Map<string,Cell>();let offset=0;
   for(const lane of [...model.groups.map(g=>g.id),undefined]) {
@@ -550,7 +552,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const usesIcon = (node: DiagramNode) => !node.image && iconStyle && (node.shape === 'card' || node.shape === 'database');
   const cells = placeCells(model), sizes = model.nodes.map(node => {
     if(model.kind==='bpmn' && (node.shape==='start'||node.shape==='end')) {
-      const text=nodeText(node,model.kind,100);const diameter=Math.max(100,text.title.length*21+text.description.length*17+48);
+      const text=nodeText(node,model.kind,80);const diameter=Math.max(80,text.title.length*21+text.description.length*17+48);
       return {width:diameter,height:diameter};
     }
     if (node.shape === 'fork' || node.shape === 'join') {
@@ -568,14 +570,14 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     const occupied=new Set(model.nodes.filter(n=>n.at).map(n=>{const c=cells.get(n.id)!;return `${c.col},${c.row}`;}));
     for(const n of model.nodes)if(!n.at){const c=cells.get(n.id)!;c[axis]=max-c[axis];while(occupied.has(`${c.col},${c.row}`))c[axis==='col'?'row':'col']++;occupied.add(`${c.col},${c.row}`);}
   }
-  const maxW = Math.max(iconStyle ? 160 : model.kind==='bpmn'?180:240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height), ...(model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?model.groups.map(g=>wrapText(g.label,132,12).length*17+32):[]));
+  const maxW = Math.max(iconStyle ? 160 : model.kind==='bpmn'?180:240, ...sizes.map(s => s.width)), maxH = Math.max(88, ...sizes.map(s => s.height), ...(model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?model.groups.map(g=>wrapText(g.label,OUTPUT_THEME.bpmnHeaderWidth-28,OUTPUT_THEME.groupFontSize).length*17+32):[]));
   const maxLabel = Math.max(0, ...model.edges.map(e => e.label ? labelSize(e.label).width : 0));
   const degree = new Map<string, number>(); model.edges.forEach(e => { degree.set(e.from, (degree.get(e.from) ?? 0) + 1); degree.set(e.to, (degree.get(e.to) ?? 0) + 1); });
   const maxDegree = Math.max(0, ...degree.values());
   const nesting = Math.max(1, ...model.groups.map(group => groupAncestors(model, group.id).length));
   const screenGap = model.kind === 'screens' ? maxDegree * 16 + 64 : 0;
   const baseGapX = model.kind==='bpmn'?Math.max(90,maxLabel+32):Math.max(screenGap, nesting > 1 ? nesting * 44 + 48 : 0, iconStyle ? Math.max(96, maxLabel + 32, Math.min(maxDegree, 16) * 8 + 48) : Math.max(170, maxLabel + 48, Math.min(maxDegree, 16) * 12 + 72));
-  const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), 12).length * 17 + 24));
+  const groupHeader = Math.max(46, ...model.groups.map(g => wrapText(g.label, Math.min(250, ...sizes.map(size => size.width + 10)), OUTPUT_THEME.groupFontSize).length * 17 + 24));
   // Activity flows often have many short rows. Reserve space for labels and
   // branching without imposing the system diagram's 132px corridor on each step.
   const baseGapY = Math.max(screenGap, ['activity','bpmn'].includes(model.kind)
@@ -584,7 +586,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   // Never shrink nodes, labels or heading clearance. Only routing corridors vary.
   const gapX = Math.max(baseGapX * spacing.x, Math.min(baseGapX, Math.max(64, screenGap, maxLabel + 24, nesting > 1 ? nesting * 44 + 48 : 0)));
   const gapY = Math.max(baseGapY * spacing.y, Math.min(baseGapY, Math.max(48, screenGap, model.groups.length ? groupHeader + 32 : 0)));
-  const marginX = (model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?160:0)+Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
+  const marginX = (model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?OUTPUT_THEME.bpmnHeaderWidth:0)+Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
@@ -617,13 +619,13 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
       const members=nodes.filter(n=>n.node.group===group.id);if(!members.length)continue;
       const indexes=members.map(n=>cells.get(n.node.id)!);
       const first=Math.min(...indexes.map(c=>horizontal?c.row:c.col)),last=Math.max(...indexes.map(c=>horizontal?c.row:c.col));
-      const x=horizontal?minX-182:marginX+first*pitchX-24;
+      const x=horizontal?minX-OUTPUT_THEME.bpmnHeaderWidth-22:marginX+first*pitchX-24;
       const y=horizontal?rowY[first]!-24:minY-groupHeader;
       const width=horizontal?maxX-x+24:(last-first)*pitchX+maxW+48;
       const height=horizontal?rowY[last]!+maxH+24-y:maxY-y+24;
       groupBoxes.set(group.id,{group,x,y,width,height});
-      const lines=wrapText(group.label,horizontal?132:width-32,12);
-      groupLabels.push({x:x+16,y:horizontal?y+height/2-lines.length*17/2:y+9,width:horizontal?132:width-32,height:lines.length*17+5});
+      const lines=wrapText(group.label,horizontal?OUTPUT_THEME.bpmnHeaderWidth-28:width-32,OUTPUT_THEME.groupFontSize);
+      groupLabels.push({x:x+16,y:horizontal?y+height/2-lines.length*17/2:y+9,width:horizontal?OUTPUT_THEME.bpmnHeaderWidth-28:width-32,height:lines.length*17+5});
     }
   }
   // Build from children upward, then paint parents before their children.
@@ -632,11 +634,11 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     if (!members.length) continue;
     const x = Math.min(...members.map(n => n.x)) - 22;
     const width = Math.max(...members.map(n => n.x + n.width)) - x + 22;
-    const header = Math.max(46, wrapText(group.label, width - 34, 12).length * 17 + 24);
+    const header = Math.max(46, wrapText(group.label, width - 34, OUTPUT_THEME.groupFontSize).length * 17 + 24);
     const y = Math.min(...members.map(n => n.y)) - header;
     const height = Math.max(...members.map(n => n.y + n.height)) - y + 22;
     groupBoxes.set(group.id, { group, x, y, width, height });
-    groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, 12)), height: wrapText(group.label, width - 34, 12).length * 17 + 5 });
+    groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, OUTPUT_THEME.groupFontSize)), height: wrapText(group.label, width - 34, OUTPUT_THEME.groupFontSize).length * 17 + 5 });
   }
   for (const group of groupOrder) if (groupBoxes.has(group.id)) groups.push(groupBoxes.get(group.id)!);
   // Group endpoints retain their identity and attach to the container boundary.

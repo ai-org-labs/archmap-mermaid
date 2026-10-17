@@ -1,0 +1,23 @@
+ArchMap Icons
+Copyright 2026 AI Organization Labs
+
+This product includes icon metadata and SVG assets obtained from third-party
+sources. The Apache License, Version 2.0 applies to the original package code
+and documentation only; it does not replace licenses, terms of use, or
+trademark policies that apply to third-party assets.
+
+Third-party sources include:
+
+- Simple Icons (https://simpleicons.org/), distributed under CC0 1.0. Brand
+  names and logos may remain subject to trademark and brand-use rules.
+- AWS Architecture Icons (https://aws.amazon.com/architecture/icons/), subject
+  to Amazon Web Services guidelines and terms.
+- Google Cloud icons (https://cloud.google.com/icons), subject to Google Cloud
+  brand and product-icon guidelines.
+- Microsoft Azure Architecture Icons
+  (https://learn.microsoft.com/azure/architecture/icons/), subject to
+  Microsoft's terms and trademark guidelines.
+
+Users are responsible for confirming that their use of each third-party icon
+complies with the applicable source terms and trademark policies. Inclusion in
+this package does not grant trademark rights or imply endorsement.
