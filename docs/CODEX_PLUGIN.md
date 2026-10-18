@@ -11,7 +11,7 @@ npm run test:plugin
 ```
 
 `plugin-dist/plugins/archmap-mermaid/` が自己完結したプラグイン本体。
-`plugin-dist/archmap-mermaid-plugin-0.1.0.tgz` が配布用アーカイブ。
+`plugin-dist/archmap-mermaid-plugin-0.1.1.tgz` が配布用アーカイブ。
 `plugin-dist/.agents/plugins/marketplace.json` がローカル検証用カタログ。
 ソースの `plugins/` は開発用で、レンダラーと構文ガイドはビルド時に同梱する。開発用ディレクトリだけを配布しない。
 
@@ -41,7 +41,7 @@ SVG・HTML・診断JSONを出力。PNGも必要なら `--png` を指定する。
 Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
 
 ```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.6
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.7
 codex plugin add archmap-mermaid@archmap
 ```
 
@@ -65,3 +65,26 @@ GitHub Releaseにもプラグインのアーカイブを添付する。これは
 `icons aws` / `icons cloud_run` / `icons github` で実在するキーを検索し、標準icon属性または既存のArchMap表示コメントに指定する。スキルにも検索→選択→描画確認の手順を含める。クラウド技術が未確定なら汎用アイコンを使う。
 
 PNG変換では `auto-start-reverse` の互換差を避けるため、線の各端点の方向からマーカー角度を明示する。配布するSVGは元の標準SVGを保持する。
+
+## 紹介画面と試し方
+
+専用の透過フクロウアイコンと日本語の説明を同梱しています。紹介画面には、対象リポジトリがなくても試せる依頼例を3つ設定しています。
+
+- Webアプリの構成図を、画面・API・データベースで作って
+- ログイン操作から認証完了までのシーケンス図を作って
+- MermaidをSVG・PNGにしたい。コードを貼るので見やすく整えて
+
+[プレイグラウンド](https://ai-org-labs.github.io/archmap-mermaid/playground/)では、インストールせずにサンプルを選んで描画・書き出しを試せます。[サンプル一覧](https://ai-org-labs.github.io/archmap-mermaid/examples/)も参照できます。スキル型プラグインの紹介用スクリーンショット設定は追加していません。
+
+個人環境へインストールすれば、各プロジェクトの会話から利用できます。対象は現在の作業ディレクトリや明示したファイルで判断します。不明な場合は対象を確認し、無関係なリポジトリを推測して変更しません。別端末では別途インストールとNode.jsの準備が必要です。
+
+### アイコンや説明が古い場合
+
+キャッシュを直接書き換えるのではなく、新しいタグのカタログを取得して再導入します。
+
+```sh
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.7
+codex plugin add archmap-mermaid@archmap
+```
+
+`codex plugin list`で`installed, enabled`とバージョン`0.1.1`を確認してください。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。

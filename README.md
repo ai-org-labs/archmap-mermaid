@@ -27,7 +27,7 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## Codexプラグイン
 
-図作成スキルとローカルSVG / PNG生成機能をまとめたプラグインを用意しています。`npm run build:plugin` で配布物を生成します。`codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.6` → `codex plugin add archmap-mermaid@archmap` で導入できます。Chromium・APIキーは不要です。初回セットアップと利用手順は [CODEX_PLUGIN.md](docs/CODEX_PLUGIN.md) を参照してください。
+図作成スキルとローカルSVG / PNG生成機能をまとめたプラグインを用意しています。`npm run build:plugin` で配布物を生成します。`codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.7` → `codex plugin add archmap-mermaid@archmap` で導入できます。Chromium・APIキーは不要です。初回セットアップと利用手順は [CODEX_PLUGIN.md](docs/CODEX_PLUGIN.md) を参照してください。
 
 ## 開発
 
