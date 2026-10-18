@@ -80,9 +80,10 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 ### アイコンや説明が古い場合
 
-キャッシュを直接書き換えるのではなく、新しいタグのカタログを取得して再導入します。
+キャッシュを直接書き換えるのではなく、新しいタグのカタログを取得して再導入します。旧タグで登録済みの場合は、先にカタログ登録を外してください（作成した図やプロジェクトは削除されません）。
 
 ```sh
+codex plugin marketplace remove archmap
 codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.7
 codex plugin add archmap-mermaid@archmap
 ```
