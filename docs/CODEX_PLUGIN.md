@@ -41,7 +41,7 @@ SVG・HTML・診断JSONを出力。PNGも必要なら `--png` を指定する。
 Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
 
 ```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.8
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.9
 codex plugin add archmap-mermaid@archmap
 ```
 
@@ -84,7 +84,7 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 ```sh
 codex plugin marketplace remove archmap
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.8
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.9
 codex plugin add archmap-mermaid@archmap
 ```
 

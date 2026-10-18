@@ -35,3 +35,15 @@ if(process.argv.includes('--distribution')){
  await fs.mkdir(path.join(root,'.agents/plugins'),{recursive:true});
  await fs.writeFile(path.join(root,'.agents/plugins/marketplace.json'),JSON.stringify(catalog,null,2)+'\n');
 }
+
+// Claude Code uses the same self-contained payload, with its own thin manifest.
+const claudeCatalog={name:'archmap',owner:{name:'ai-org-labs'},metadata:{description:'Readable architecture diagrams with local SVG and PNG rendering'},plugins:[{name:manifest.name,source:'./distribution/archmap-mermaid',description:manifest.description}]};
+if(process.argv.includes('--distribution')){
+ await fs.mkdir(path.join(root,'.claude-plugin'),{recursive:true});
+ await fs.writeFile(path.join(root,'.claude-plugin/marketplace.json'),JSON.stringify(claudeCatalog,null,2)+'\n');
+}
+// OpenAI submission requires plugin.json directly at the ZIP root.
+const zip=path.join(output,`archmap-mermaid-plugin-${manifest.version}.zip`);
+const zipped=spawnSync('zip',['-qr',zip,'.'],{cwd:target,stdio:'inherit'});
+if(zipped.status!==0)throw Error('Submission ZIP failed');
+console.log(JSON.stringify({submissionZip:zip}));

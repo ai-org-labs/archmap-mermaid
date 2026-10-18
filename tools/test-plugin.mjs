@@ -58,3 +58,15 @@ assert.equal(imageResult.model.nodes[0].image.naturalWidth,1);
 const svgOnlyFile=path.join(temp,'svg-only.mmd');await fs.writeFile(svgOnlyFile,'flowchart LR\nA --> B');
 const svgOnly=run(['render',svgOnlyFile,'--out',path.join(temp,'svg-only')]);assert(!svgOnly.files.png);
 runtime.close();console.log('PASS bundled AWS/GCP/service icons, unknown icon error, four-direction arrows, embedded image, SVG-only output');
+
+const portable=JSON.parse(await fs.readFile(path.join(plugin,'plugin.json')));
+for(const relative of ['.codex-plugin/plugin.json','.claude-plugin/plugin.json','package.json']){
+ const metadata=JSON.parse(await fs.readFile(path.join(plugin,relative)));
+ assert.equal(metadata.version,portable.version);
+}
+assert.equal(portable.extensions['com.openai'].requires_local_executor,true);
+const listing=spawnSync('unzip',['-Z1',path.join(root,`plugin-dist/archmap-mermaid-plugin-${portable.version}.zip`)],{encoding:'utf8'});
+assert.equal(listing.status,0);
+for(const entry of ['plugin.json','.claude-plugin/plugin.json','assets/archmap-mermaid.js','skills/diagram/SKILL.md'])assert(listing.stdout.split('\n').includes(entry));
+assert(!listing.stdout.includes('node_modules/'));
+console.log('PASS shared manifests and submission ZIP');

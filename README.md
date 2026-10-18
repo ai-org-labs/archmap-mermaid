@@ -78,3 +78,14 @@ Mermaidほかの依存・アイコンの帰属は `THIRD_PARTY_NOTICES.md` を�
 ### SVG / PNG の可読性
 
 出力画像そのものを読みやすくするため、通常の処理は白いカード、グループは淡い背景、見出し・接続線は濃い色で描画します。標準 Mermaid の `style` / `classDef` による指定色が優先されます。BPMN ビューでは担当レーンを跨ぐ受け渡しを同じ進行位置に揃え、不要な横幅を抑えます。専用の閲覧モードや追加構文は不要です。
+
+### Claude Code
+
+同じArchMapをClaude Codeから利用できます。単体Skillの追加は不要です。
+
+```sh
+claude plugin marketplace add ai-org-labs/archmap-mermaid
+claude plugin install archmap-mermaid@archmap --scope user
+```
+
+再起動後、`/archmap-mermaid:diagram`から作図できます。[導入・更新手順](docs/CLAUDE_PLUGIN.md) / [OpenAI公開申請手順](docs/PLUGIN_SUBMISSION.md)
