@@ -1,6 +1,6 @@
 {
   "name": "archmap-mermaid",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "自然言語・既存コード・Mermaidから、読みやすい設計図を作成・更新。AWSなどのアイコンを使い、SVG・PNGと編集可能なソースをローカルに保存します。",
   "author": {
     "name": "ai-org-labs"

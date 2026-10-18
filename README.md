@@ -27,7 +27,7 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## Codexプラグイン
 
-図作成スキルとローカルSVG / PNG生成機能をまとめたプラグインを用意しています。`npm run build:plugin` で配布物を生成します。`codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.8` → `codex plugin add archmap-mermaid@archmap` で導入できます。Chromium・APIキーは不要です。初回セットアップと利用手順は [CODEX_PLUGIN.md](docs/CODEX_PLUGIN.md) を参照してください。
+図作成スキルとローカルSVG / PNG生成機能をまとめたプラグインを用意しています。`npm run build:plugin` で配布物を生成します。`codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.10` → `codex plugin add archmap-mermaid@archmap` で導入できます。Chromium・APIキーは不要です。初回セットアップと利用手順は [CODEX_PLUGIN.md](docs/CODEX_PLUGIN.md) を参照してください。
 
 ## 開発
 
@@ -89,3 +89,9 @@ claude plugin install archmap-mermaid@archmap --scope user
 ```
 
 再起動後、`/archmap-mermaid:diagram`から作図できます。[導入・更新手順](docs/CLAUDE_PLUGIN.md) / [OpenAI公開申請手順](docs/PLUGIN_SUBMISSION.md)
+
+## 開発と一緒に図を維持する
+
+「このプロジェクトでは開発に合わせて設計図も更新して」と依頼すると、対象図・保存先と継続更新の方針をプロジェクトに記録します。以後は関連する設計・実装変更の節目で更新します。「継続更新を止めて」で停止できます。常時監視や毎ターンの自動実行を保証する機能ではありません。
+
+[開始・停止・引き継ぎの手順](docs/DIAGRAM_MAINTENANCE.md)

@@ -41,7 +41,7 @@ SVG・HTML・診断JSONを出力。PNGも必要なら `--png` を指定する。
 Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
 
 ```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.9
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.10
 codex plugin add archmap-mermaid@archmap
 ```
 
@@ -84,8 +84,14 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 ```sh
 codex plugin marketplace remove archmap
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.9
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.10
 codex plugin add archmap-mermaid@archmap
 ```
 
 `codex plugin list`で`installed, enabled`とバージョン`0.1.2`を確認してください。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
+
+## 開発と一緒に図を維持する
+
+「このプロジェクトでは開発に合わせて設計図も更新して」と依頼すると、対象図・保存先と継続更新の方針をプロジェクトに記録します。以後は関連する設計・実装変更の節目で更新します。「継続更新を止めて」で停止できます。常時監視や毎ターンの自動実行を保証する機能ではありません。
+
+[開始・停止・引き継ぎの手順](DIAGRAM_MAINTENANCE.md)

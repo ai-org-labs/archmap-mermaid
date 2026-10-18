@@ -13,7 +13,7 @@ await fs.cp(path.join(root,'dist/licenses'),path.join(target,'licenses'),{recurs
 for(const name of ['LICENSE','THIRD_PARTY_NOTICES.md'])await fs.copyFile(path.join(root,name),path.join(target,name));
 const refs=path.join(target,'skills/diagram/references');await fs.mkdir(refs,{recursive:true});
 // Copy the canonical docs at build time; do not maintain divergent plugin manuals.
-for(const name of ['SYNTAX.md','DIAGRAM_LAYOUT_GUIDE.md','AI_PROMPT_TEMPLATE.md','LAYOUT_BALANCE.md']) {
+for(const name of ['SYNTAX.md','DIAGRAM_LAYOUT_GUIDE.md','AI_PROMPT_TEMPLATE.md','LAYOUT_BALANCE.md','DIAGRAM_MAINTENANCE.md']) {
  const text=await fs.readFile(path.join(root,'docs',name),'utf8');
  await fs.writeFile(path.join(refs,name),text.replaceAll('](diagrams/','](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/'));
 }

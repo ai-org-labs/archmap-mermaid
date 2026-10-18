@@ -47,3 +47,9 @@ claude --plugin-dir ./plugin-dist/plugins/archmap-mermaid
 同梱の作図手順は共通です。サービスごとの設計ルールのコピーを増やしません。配布先はai-org-labsのGitHub marketplaceであり、Anthropic公式ディレクトリへの掲載とは別です。
 
 [Claude Code公式プラグイン仕様](https://code.claude.com/docs/en/plugins-reference)
+
+## 開発と一緒に図を維持する
+
+「このプロジェクトでは開発に合わせて設計図も更新して」と依頼すると、対象図・保存先と継続更新の方針をプロジェクトに記録します。以後は関連する設計・実装変更の節目で更新します。「継続更新を止めて」で停止できます。常時監視や毎ターンの自動実行を保証する機能ではありません。
+
+[開始・停止・引き継ぎの手順](DIAGRAM_MAINTENANCE.md)

@@ -1,11 +1,15 @@
 ---
 name: diagram
-description: Create, update and visualize architecture, sequence, activity, ER, screen transition and business-flow diagrams using ArchMap Mermaid. Use for requested design diagrams or when visualizing relationships materially helps an ongoing implementation or explanation.
+description: Create, update and visualize architecture, sequence, activity, ER, screen transition and business-flow diagrams using ArchMap Mermaid. Use for requested diagrams, enabling/pausing project diagram maintenance, or design and implementation changes affecting diagrams in a project with active ArchMap maintenance. Also use when visualizing relationships materially helps an explanation.
 ---
 
 # ArchMap Mermaid
 
 成果物は編集可能な `.mmd` と、それから生成した SVG / PNG。ユーザーのプロジェクトで作成する。読むモードや公開Playgroundへのアップロードは不要。
+
+## 継続更新
+
+継続更新の開始・停止・再開を依頼された場合、またはプロジェクトに有効なArchMap継続更新設定がある場合は、[継続更新の共通手順](references/DIAGRAM_MAINTENANCE.md)を読む。設定を確認し、関連する図だけを作業の節目で更新する。一回限りの作図では永続設定を追加しない。
 
 ## 判断と作成
 
