@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "archmap-mermaid",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "自然言語・既存コード・Mermaidから、読みやすい設計図を作成・更新。AWSなどのアイコンを使い、SVG・PNGと編集可能なソースをローカルに保存します。",
   "author": {
     "name": "ai-org-labs"
@@ -25,7 +25,7 @@
           "ログイン操作から認証完了までのシーケンス図を作って",
           "MermaidをSVG・PNGにしたい。コードを貼るので見やすく整えて"
         ],
-        "brandColor": "#075565"
+        "brandColor": "#207e73"
       }
     }
   }
