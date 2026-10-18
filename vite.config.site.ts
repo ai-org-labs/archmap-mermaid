@@ -12,6 +12,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: resolve(rootDir, "index.html"),
+        privacy: resolve(rootDir, "privacy/index.html"),
+        terms: resolve(rootDir, "terms/index.html"),
         playground: resolve(rootDir, "playground/index.html"),
         examples: resolve(rootDir, "examples/index.html"),
         syntax: resolve(rootDir, "syntax/index.html"),

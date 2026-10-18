@@ -8,7 +8,7 @@ node tools/build-plugin.mjs --distribution
 npm run test:plugin
 ```
 
-OpenAI申請用: `plugin-dist/archmap-mermaid-plugin-0.1.4.zip`。ZIP直下にportable `plugin.json`を置き、ローカル実行を必要とするプラグインとして`requires_local_executor: true`を宣言しています。同梱Skillはプラグインの実行手順であり、独立したSkill配布は行いません。
+OpenAI申請用: `plugin-dist/archmap-mermaid-plugin-0.1.5.zip`。ZIP直下にportable `plugin.json`を置き、ローカル実行を必要とするプラグインとして`requires_local_executor: true`を宣言しています。同梱Skillはプラグインの実行手順であり、独立したSkill配布は行いません。
 
 ## 公開手順
 
@@ -33,4 +33,6 @@ Claude Codeの配布・導入は[CLAUDE_PLUGIN.md](CLAUDE_PLUGIN.md)を参照し
 
 ## 現在の申請状況（2026-10-18）
 
-申請ポータルで開発者本人確認が審査中のため、ZIPアップロード前で停止しています。公式ディレクトリへの申請・掲載はまだ完了していません。GitHub配布は利用できます。
+本人確認は承認済みです。申請画面からskills-onlyの新規受付停止を通知されたため、公式ディレクトリへの申請作業はここで終了します。承認・掲載済みではありません。MCP化は行わず、GitHub経由のCodex・Claude Code向け配布を継続します。
+
+プライバシーポリシーと利用規約はPagesで公開し、各プラグイン定義にURLを設定しています。URLの整備は受付停止の解消を意味しません。

@@ -15,3 +15,11 @@ assert(!/<link[^>]+rel="stylesheet"/.test(offline));
 assert(offline.includes('sequenceDiagram')&&offline.includes('download-icon-list'));
 await stat('dist/archmap-mermaid.js');
 console.log('PASS: four routes, relative assets, standalone HTML and browser library');
+
+for(const route of ['privacy','terms']) {
+ const html=await readFile(`site-dist/${route}/index.html`,'utf8');
+ assert(html.includes('<h1>')&&html.includes('2026年10月18日'));
+ assert(html.includes('../privacy/')&&html.includes('../terms/'));
+ assert(!/<script\b/i.test(html));
+}
+console.log('PASS: public legal pages without JavaScript');
