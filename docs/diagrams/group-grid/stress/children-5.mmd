@@ -1,0 +1,41 @@
+%% archmap: {"groups": {"P": {"grid": {"columns": 3, "items": [{"id": "G0"}, {"id": "G1"}, {"id": "G2"}, {"id": "G3"}, {"id": "G4"}]}}}}
+flowchart LR
+subgraph P[親グループ]
+subgraph G0[サービス 1]
+direction TB
+n0_0[処理 1-1]
+end
+subgraph G1[サービス 2]
+direction LR
+n1_0[処理 2-1]
+n1_1[処理 2-2]
+n1_0 --> n1_1
+end
+subgraph G2[サービス 3]
+direction TB
+n2_0[処理 3-1]
+n2_1[処理 3-2]
+n2_2[処理 3-3]
+n2_0 --> n2_1
+n2_1 --> n2_2
+end
+subgraph G3[サービス 4]
+direction LR
+n3_0[処理 4-1]
+n3_1[処理 4-2]
+n3_2[処理 4-3]
+n3_3[処理 4-4]
+n3_0 --> n3_1
+n3_1 --> n3_2
+n3_2 --> n3_3
+end
+subgraph G4[サービス 5]
+direction TB
+n4_0[処理 5-1]
+end
+end
+n0_0 --> n1_0
+n1_0 --> n2_0
+n2_0 --> n3_0
+n3_0 --> n4_0
+

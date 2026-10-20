@@ -1,0 +1,16 @@
+flowchart TB
+  subgraph cloud[親：クラウド環境]
+    direction TB
+    ingress[入口]
+    subgraph app[子：アプリケーション]
+      direction TB
+      api[API]
+      subgraph data[孫：データ層]
+        db[(データベース)]
+      end
+    end
+  end
+  ingress --> api --> db
+  style cloud fill:none,stroke:#0369a1
+  style app fill:none,stroke:#0369a1
+  style data fill:none,stroke:#0369a1

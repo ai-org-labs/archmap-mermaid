@@ -1,0 +1,31 @@
+%% archmap: {"groups": {"RootXXX": {"grid": {"columns": 2, "items": [{"id": "n0"}, {"id": "n1"}, {"id": "n2"}]}}, "RootX": {"grid": {"columns": 2, "items": [{"id": "RootXX"}, {"id": "n5"}, {"id": "n6"}]}}}}
+flowchart LR
+subgraph Root[領域 Root]
+direction BT
+subgraph RootX[領域 RootX]
+direction LR
+subgraph RootXX[領域 RootXX]
+direction BT
+subgraph RootXXX[領域 RootXXX]
+direction TB
+n0["処理0"]
+n1["長めの名前を含む処理1"]
+n2["処理2"]
+end
+n3["長めの名前を含む処理1"]
+n4["処理2"]
+end
+n5["長めの名前を含む処理1"]
+n6["処理2"]
+end
+n7["長めの名前を含む処理1"]
+n8["処理2"]
+end
+n0 --> n1
+n1 --> n2
+n2 --> n3
+n3 --> n4
+n4 --> n5
+n5 --> n6
+n6 --> n7
+n7 --> n8

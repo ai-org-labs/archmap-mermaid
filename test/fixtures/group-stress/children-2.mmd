@@ -1,0 +1,16 @@
+%% archmap: {"groups": {"P": {"grid": {"columns": 2, "items": [{"id": "G0"}, {"id": "G1"}]}}}}
+flowchart LR
+subgraph P[親グループ]
+subgraph G0[サービス 1]
+direction TB
+n0_0[処理 1-1]
+end
+subgraph G1[サービス 2]
+direction LR
+n1_0[処理 2-1]
+n1_1[処理 2-2]
+n1_0 --> n1_1
+end
+end
+n0_0 --> n1_0
+

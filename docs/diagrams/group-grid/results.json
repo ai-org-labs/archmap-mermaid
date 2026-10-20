@@ -1,0 +1,92 @@
+[
+  {
+    "name": "nested-three-children",
+    "title": "親に子3つ、孫にもグリッド",
+    "description": "方向・サイズの異なる子、横結合、縦結合、階層をまたぐ接続を組み合わせています。",
+    "width": 2160,
+    "height": 980,
+    "diagnostics": [],
+    "nodes": 11,
+    "edges": 11
+  },
+  {
+    "name": "branching-directions",
+    "title": "親に子3つ：方向で配置",
+    "description": "グリッド指定なし。各親のdirectionと接続から、子を実寸の箱として配置します。",
+    "width": 2472,
+    "height": 1132,
+    "diagnostics": [],
+    "nodes": 11,
+    "edges": 11
+  },
+  {
+    "name": "nested-directions",
+    "title": "LR → TB を6階層",
+    "description": "階層ごとの方向を維持し、ノード間隔に深さ分の余白を加えない配置です。",
+    "width": 2472,
+    "height": 1352,
+    "before": {
+      "width": 4968,
+      "height": 2328
+    },
+    "diagnostics": [],
+    "nodes": 12,
+    "edges": 11
+  },
+  {
+    "name": "nested-directions-grid",
+    "title": "深い入れ子と小さな外部サービス",
+    "description": "列の幅を内容に合わせます。小さな外部サービスの列まで広げません。",
+    "width": 2828,
+    "height": 1352,
+    "before": {
+      "width": 9936,
+      "height": 2328
+    },
+    "diagnostics": [],
+    "nodes": 14,
+    "edges": 13
+  },
+  {
+    "name": "environment-matrix",
+    "title": "3環境 × 4サービス",
+    "description": "列は商用・ステージング・開発、行はサービス1〜4。",
+    "width": 1092,
+    "height": 1952,
+    "before": {
+      "width": 1260,
+      "height": 2098
+    },
+    "diagnostics": [],
+    "nodes": 36,
+    "edges": 24
+  },
+  {
+    "name": "horizontal-span",
+    "title": "上に2つ、下は横2列",
+    "description": "colSpan:2 で横方向のセル結合。",
+    "width": 736,
+    "height": 624,
+    "before": {
+      "width": 850,
+      "height": 932
+    },
+    "diagnostics": [],
+    "nodes": 6,
+    "edges": 5
+  },
+  {
+    "name": "vertical-span",
+    "title": "左は縦2行、右に2つ",
+    "description": "rowSpan:2 で縦方向のセル結合。",
+    "width": 1048,
+    "height": 776,
+    "before": {
+      "width": 1670,
+      "height": 932
+    },
+    "diagnostics": [],
+    "nodes": 6,
+    "edges": 5
+  }
+]

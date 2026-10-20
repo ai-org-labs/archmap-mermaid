@@ -1,0 +1,16 @@
+%% archmap: {"grid": {"columns": 2, "items": [{"id": "A"}, {"id": "B"}, {"id": "C", "colSpan": 2}]}}
+flowchart LR
+  subgraph A[商用環境]
+    direction TB
+    a[API] --> ad[(DB)]
+  end
+  subgraph B[開発環境]
+    direction TB
+    b[API] --> bd[(DB)]
+  end
+  subgraph C[共通サービス]
+    direction LR
+    c[監視] --> cd[(ログ保管)]
+  end
+  a --> c
+  b --> c

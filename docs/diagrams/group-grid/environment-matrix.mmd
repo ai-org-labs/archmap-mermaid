@@ -1,0 +1,62 @@
+%% archmap: {"grid": {"columns": 3, "items": [{"id": "s1_prod"}, {"id": "s1_stage"}, {"id": "s1_dev"}, {"id": "s2_prod"}, {"id": "s2_stage"}, {"id": "s2_dev"}, {"id": "s3_prod"}, {"id": "s3_stage"}, {"id": "s3_dev"}, {"id": "s4_prod"}, {"id": "s4_stage"}, {"id": "s4_dev"}]}}
+flowchart TB
+  subgraph s1_prod["サービス1 · 商用環境"]
+    direction TB
+    s1_prod_api[APIサービス] --> s1_prod_worker[処理サービス]
+    s1_prod_worker --> s1_prod_db[(データベース)]
+  end
+  subgraph s1_stage["サービス1 · ステージング環境"]
+    direction TB
+    s1_stage_api[APIサービス] --> s1_stage_worker[処理サービス]
+    s1_stage_worker --> s1_stage_db[(データベース)]
+  end
+  subgraph s1_dev["サービス1 · 開発環境"]
+    direction TB
+    s1_dev_api[APIサービス] --> s1_dev_worker[処理サービス]
+    s1_dev_worker --> s1_dev_db[(データベース)]
+  end
+  subgraph s2_prod["サービス2 · 商用環境"]
+    direction TB
+    s2_prod_api[APIサービス] --> s2_prod_worker[処理サービス]
+    s2_prod_worker --> s2_prod_db[(データベース)]
+  end
+  subgraph s2_stage["サービス2 · ステージング環境"]
+    direction TB
+    s2_stage_api[APIサービス] --> s2_stage_worker[処理サービス]
+    s2_stage_worker --> s2_stage_db[(データベース)]
+  end
+  subgraph s2_dev["サービス2 · 開発環境"]
+    direction TB
+    s2_dev_api[APIサービス] --> s2_dev_worker[処理サービス]
+    s2_dev_worker --> s2_dev_db[(データベース)]
+  end
+  subgraph s3_prod["サービス3 · 商用環境"]
+    direction TB
+    s3_prod_api[APIサービス] --> s3_prod_worker[処理サービス]
+    s3_prod_worker --> s3_prod_db[(データベース)]
+  end
+  subgraph s3_stage["サービス3 · ステージング環境"]
+    direction TB
+    s3_stage_api[APIサービス] --> s3_stage_worker[処理サービス]
+    s3_stage_worker --> s3_stage_db[(データベース)]
+  end
+  subgraph s3_dev["サービス3 · 開発環境"]
+    direction TB
+    s3_dev_api[APIサービス] --> s3_dev_worker[処理サービス]
+    s3_dev_worker --> s3_dev_db[(データベース)]
+  end
+  subgraph s4_prod["サービス4 · 商用環境"]
+    direction TB
+    s4_prod_api[APIサービス] --> s4_prod_worker[処理サービス]
+    s4_prod_worker --> s4_prod_db[(データベース)]
+  end
+  subgraph s4_stage["サービス4 · ステージング環境"]
+    direction TB
+    s4_stage_api[APIサービス] --> s4_stage_worker[処理サービス]
+    s4_stage_worker --> s4_stage_db[(データベース)]
+  end
+  subgraph s4_dev["サービス4 · 開発環境"]
+    direction TB
+    s4_dev_api[APIサービス] --> s4_dev_worker[処理サービス]
+    s4_dev_worker --> s4_dev_db[(データベース)]
+  end

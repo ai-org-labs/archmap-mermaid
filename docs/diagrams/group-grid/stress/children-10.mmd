@@ -1,0 +1,80 @@
+%% archmap: {"groups": {"P": {"grid": {"columns": 3, "items": [{"id": "G0"}, {"id": "G1"}, {"id": "G2"}, {"id": "G3"}, {"id": "G4"}, {"id": "G5"}, {"id": "G6"}, {"id": "G7"}, {"id": "G8"}, {"id": "G9"}]}}}}
+flowchart LR
+subgraph P[親グループ]
+subgraph G0[サービス 1]
+direction TB
+n0_0[処理 1-1]
+end
+subgraph G1[サービス 2]
+direction LR
+n1_0[処理 2-1]
+n1_1[処理 2-2]
+n1_0 --> n1_1
+end
+subgraph G2[サービス 3]
+direction TB
+n2_0[処理 3-1]
+n2_1[処理 3-2]
+n2_2[処理 3-3]
+n2_0 --> n2_1
+n2_1 --> n2_2
+end
+subgraph G3[サービス 4]
+direction LR
+n3_0[処理 4-1]
+n3_1[処理 4-2]
+n3_2[処理 4-3]
+n3_3[処理 4-4]
+n3_0 --> n3_1
+n3_1 --> n3_2
+n3_2 --> n3_3
+end
+subgraph G4[サービス 5]
+direction TB
+n4_0[処理 5-1]
+end
+subgraph G5[サービス 6]
+direction LR
+n5_0[処理 6-1]
+n5_1[処理 6-2]
+n5_0 --> n5_1
+end
+subgraph G6[サービス 7]
+direction TB
+n6_0[処理 7-1]
+n6_1[処理 7-2]
+n6_2[処理 7-3]
+n6_0 --> n6_1
+n6_1 --> n6_2
+end
+subgraph G7[サービス 8]
+direction LR
+n7_0[処理 8-1]
+n7_1[処理 8-2]
+n7_2[処理 8-3]
+n7_3[処理 8-4]
+n7_0 --> n7_1
+n7_1 --> n7_2
+n7_2 --> n7_3
+end
+subgraph G8[サービス 9]
+direction TB
+n8_0[処理 9-1]
+end
+subgraph G9[サービス 10]
+direction LR
+n9_0[処理 10-1]
+n9_1[処理 10-2]
+n9_0 --> n9_1
+end
+end
+n0_0 --> n1_0
+n1_0 --> n2_0
+n2_0 --> n3_0
+n3_0 --> n4_0
+n4_0 --> n5_0
+n5_0 --> n6_0
+n6_0 --> n7_0
+n7_0 --> n8_0
+n8_0 --> n9_0
+

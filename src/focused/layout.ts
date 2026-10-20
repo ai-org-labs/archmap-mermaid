@@ -178,6 +178,67 @@ function directedGroupCells(model: DiagramModel): Map<string,Cell> {
   return build(undefined,model.direction).cells;
 }
 
+/** Measure descendants first, then place immediate children as indivisible boxes. */
+function recursiveGroupLayout(model:DiagramModel, sizes:Map<string,DiagramBox>, spacing:{x:number;y:number}) {
+  type Block={id:string;width:number;height:number;nodes:Map<string,DiagramBox>;groups:Map<string,DiagramBox>};
+  const pad=22, gx=Math.max(48,72*spacing.x), gy=Math.max(48,64*spacing.y);
+  function build(parent:string|undefined,inherited:DiagramModel['direction']):Block {
+    const group=model.groups.find(g=>g.id===parent),dir=group?.direction??inherited;
+    const children:Block[]=[...model.nodes.filter(n=>n.group===parent).map(n=>({id:n.id,...sizes.get(n.id)!,nodes:new Map([[n.id,{...sizes.get(n.id)!,x:0,y:0}]]),groups:new Map<string,DiagramBox>()})),...model.groups.filter(g=>g.parent===parent).map(g=>build(g.id,dir))];
+    const grid=group?.grid??(!parent?model.grid:undefined), positions=new Map<string,{x:number;y:number;width?:number;height?:number}>();
+    let width=0,height=0;
+    if(grid&&children.length){
+      const taken=new Set<string>();
+      const items=grid.items.map(item=>{
+        const b=children.find(b=>b.id===item.id)!;const cs=item.colSpan??1,rs=item.rowSpan??1;let row=0,col=0;
+        search:for(;;row++)for(col=0;col+cs<=grid.columns;col++){
+          let free=true;for(let y=row;y<row+rs;y++)for(let x=col;x<col+cs;x++)if(taken.has(`${x},${y}`))free=false;
+          if(free)break search;
+        }
+        for(let y=row;y<row+rs;y++)for(let x=col;x<col+cs;x++)taken.add(`${x},${y}`);
+        return {b,col,row,cs,rs};
+      });
+      const cols=Array(grid.columns).fill(0),rows=Array(Math.max(...items.map(i=>i.row+i.rs))).fill(0);
+      // Single-cell sizes first, then distribute only a spanning item's deficit.
+      const fit=(tracks:number[],start:number,span:number,need:number,gap:number)=>{
+        const available=tracks.slice(start,start+span).reduce((a,b)=>a+b,0)+(span-1)*gap;
+        const extra=Math.max(0,need-available)/span;for(let i=start;i<start+span;i++)tracks[i]+=extra;
+      };
+      for(const i of [...items].sort((a,b)=>a.cs-b.cs))fit(cols,i.col,i.cs,i.b.width,gx);
+      for(const i of [...items].sort((a,b)=>a.rs-b.rs))fit(rows,i.row,i.rs,i.b.height,gy);
+      if(grid.sizing==='equal'){cols.fill(Math.max(...cols));rows.fill(Math.max(...rows));}
+      const offset=(tracks:number[],end:number,gap:number)=>tracks.slice(0,end).reduce((a,b)=>a+b,0)+end*gap;
+      for(const i of items)positions.set(i.b.id,{x:offset(cols,i.col,gx),y:offset(rows,i.row,gy),width:cols.slice(i.col,i.col+i.cs).reduce((a,b)=>a+b,0)+(i.cs-1)*gx,height:rows.slice(i.row,i.row+i.rs).reduce((a,b)=>a+b,0)+(i.rs-1)*gy});
+      width=offset(cols,cols.length,gx)-gx;height=offset(rows,rows.length,gy)-gy;
+    }else if(children.length){
+      const owner=new Map<string,string>();for(const b of children){owner.set(b.id,b.id);for(const id of [...b.nodes.keys(),...b.groups.keys()])owner.set(id,b.id);}
+      const edges=model.edges.flatMap(e=>{const from=owner.get(e.from),to=owner.get(e.to);return from&&to&&from!==to?[{...e,from,to}]:[];});
+      const rank=ranks({...model,nodes:children.map(b=>({id:b.id,label:'',shape:'card',color:'blue',line:0})),edges});
+      const horizontal=dir==='LR'||dir==='RL';let along=0;
+      const edgeLabel=Math.max(0,...edges.map(e=>e.label?labelSize(e.label).width:0));
+      const alongGap=horizontal?Math.max(gx,edgeLabel+32):gy;
+      for(const level of [...new Set(rank.values())].sort((a,b)=>a-b)){
+        const lane=children.filter(b=>rank.get(b.id)===level);let across=0;
+        for(const b of lane){positions.set(b.id,horizontal?{x:along,y:across}:{x:across,y:along});across+=(horizontal?b.height:b.width)+(horizontal?gy:gx);}
+        if(horizontal)height=Math.max(height,across-gy);else width=Math.max(width,across-gx);
+        along+=Math.max(...lane.map(b=>horizontal?b.width:b.height))+alongGap;
+      }
+      if(horizontal)width=along-alongGap;else height=along-alongGap;
+      for(const b of children){const p=positions.get(b.id)!;if(dir==='RL')p.x=width-p.x-b.width;if(dir==='BT')p.y=height-p.y-b.height;}
+    }
+    const contentWidth=Math.max(width,group?120:0),header=group?Math.max(46,wrapText(group.label,Math.max(86,contentWidth+2*pad-34),OUTPUT_THEME.groupFontSize).length*17+24):0;
+    const ox=group?pad:0,oy=header,nodes=new Map<string,DiagramBox>(),groups=new Map<string,DiagramBox>();
+    for(const b of children){const p=positions.get(b.id)!;
+      for(const [id,box] of b.nodes)nodes.set(id,{...box,x:box.x+p.x+ox,y:box.y+p.y+oy});
+      for(const [id,box] of b.groups)groups.set(id,{...box,x:box.x+p.x+ox,y:box.y+p.y+oy,...(id===b.id&&grid?{width:p.width!,height:p.height!}:{})});
+    }
+    width=contentWidth+ox*2;height=Math.max(height,group?44:0)+oy+(group?pad:0);
+    if(group)groups.set(group.id,{x:0,y:0,width,height});
+    return {id:parent??'',width,height,nodes,groups};
+  }
+  return build(undefined,model.direction);
+}
+
 /** BPMN view: global process ranks, stable responsibility bands. Back edges
  * are excluded only from ranking; every connection remains in the rendered graph. */
 function bpmnCells(model: DiagramModel): Map<string,Cell> {
@@ -532,7 +593,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
       const node=model.nodes.find(n=>n.id===id);
       return groupAncestors(model,node?node.group:id).filter(g=>model.groups.find(group=>group.id===g)?.collapsed).pop();
     };
-    const projected={...model,nodes:model.nodes.filter(n=>!owner(n.id)),groups:model.groups.filter(g=>!owner(g.id)||owner(g.id)===g.id).map(g=>({...g,collapsed:false})),edges:model.edges.flatMap(e=>{
+    const projected={...model,nodes:model.nodes.filter(n=>!owner(n.id)),groups:model.groups.filter(g=>!owner(g.id)||owner(g.id)===g.id).map(g=>({...g,collapsed:false,...(g.collapsed?{grid:undefined}:{})})),edges:model.edges.flatMap(e=>{
       const from=owner(e.from)||e.from,to=owner(e.to)||e.to;
       return from===to&&(from!==e.from||to!==e.to)?[]:[{...e,from,to}];
     })};
@@ -550,7 +611,8 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
 
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
   const usesIcon = (node: DiagramNode) => !node.image && iconStyle && (node.shape === 'card' || node.shape === 'database');
-  const cells = placeCells(model), sizes = model.nodes.map(node => {
+  const recursive=model.kind==='system'&&!model.nodes.some(n=>n.at)&&(model.groups.some(g=>g.parent||g.grid)||!!model.grid);
+  const cells = recursive?new Map(model.nodes.map(n=>[n.id,{col:0,row:0}])):placeCells(model), sizes = model.nodes.map(node => {
     if(model.kind==='bpmn' && (node.shape==='start'||node.shape==='end')) {
       const text=nodeText(node,model.kind,80);const diameter=Math.max(80,text.title.length*21+text.description.length*17+48);
       return {width:diameter,height:diameter};
@@ -565,7 +627,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     }
     return usesIcon(node) ? iconNodeSize(node) : sizeNode(node, model.kind);
   });
-  if(!usesDirectedGroups(model)&&(model.direction==='RL'||model.direction==='BT')) {
+  if(!model.grid&&!usesDirectedGroups(model)&&(model.direction==='RL'||model.direction==='BT')) {
     const axis=model.direction==='RL'?'col':'row',max=Math.max(0,...[...cells.values()].map(c=>c[axis]));
     const occupied=new Set(model.nodes.filter(n=>n.at).map(n=>{const c=cells.get(n.id)!;return `${c.col},${c.row}`;}));
     for(const n of model.nodes)if(!n.at){const c=cells.get(n.id)!;c[axis]=max-c[axis];while(occupied.has(`${c.col},${c.row}`))c[axis==='col'?'row':'col']++;occupied.add(`${c.col},${c.row}`);}
@@ -587,6 +649,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const gapX = Math.max(baseGapX * spacing.x, Math.min(baseGapX, Math.max(64, screenGap, maxLabel + 24, nesting > 1 ? nesting * 44 + 48 : 0)));
   const gapY = Math.max(baseGapY * spacing.y, Math.min(baseGapY, Math.max(48, screenGap, model.groups.length ? groupHeader + 32 : 0)));
   const marginX = (model.kind==='bpmn'&&(model.direction==='LR'||model.direction==='RL')?OUTPUT_THEME.bpmnHeaderWidth:0)+Math.max(screenGap ? gapX / 2 + 32 : 0, 100, maxLabel / 2 + 36, nesting * 22 + 24);
+
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
   const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
@@ -600,6 +663,16 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   for (let row=1; row<rows; row++) rowY.push(rowY[row-1]! + maxH + rowGaps[row]!);
   const yGutters = [...rowY.map((y,row) => y - rowGaps[row]! / 2), rowY[rows-1]! + maxH + gapY/2];
   const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: rowY[cells.get(node.id)!.row]! + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
+  const compound=recursive?recursiveGroupLayout(model,new Map(nodes.map(n=>[n.node.id,n])),spacing):undefined;
+  if(compound){
+    const ox=48,oy=48+(model.title?wrapText(model.title,Math.max(240,compound.width),19).length*26+22:0);
+    for(const n of nodes){const box=compound.nodes.get(n.node.id)!;n.x=box.x+ox;n.y=box.y+oy;}
+    for(const box of compound.groups.values()){box.x+=ox;box.y+=oy;}
+    const boxes=[...nodes,...compound.groups.values()];
+    xGutters.splice(0,xGutters.length,...[...new Set(boxes.flatMap(b=>[Math.max(16,b.x-16),b.x+b.width+16]))].sort((a,b)=>a-b));
+    yGutters.splice(0,yGutters.length,...[...new Set(boxes.flatMap(b=>[Math.max(16,b.y-16),b.y+b.height+16]))].sort((a,b)=>a-b));
+    cells.clear(); // Ports escape in pixel space; there is no global node grid.
+  }
   const nodeById = new Map(nodes.map(n => [n.node.id, n]));
   for (const node of nodes) if (node.node.shape === 'fork' || node.node.shape === 'join') {
     const cx = node.x + node.width / 2, cy = node.y + node.height / 2, text = junctionText(node.node);
@@ -632,11 +705,12 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   for (const group of model.kind==='bpmn'?[]:[...groupOrder].reverse()) {
     const members: DiagramBox[] = [...nodes.filter(n => n.node.group === group.id), ...groupOrder.filter(child => child.parent === group.id).flatMap(child => groupBoxes.has(child.id) ? [groupBoxes.get(child.id)!] : [])];
     if (!members.length) continue;
-    const x = Math.min(...members.map(n => n.x)) - 22;
-    const width = Math.max(...members.map(n => n.x + n.width)) - x + 22;
+    let x = Math.min(...members.map(n => n.x)) - 22;
+    let width = Math.max(...members.map(n => n.x + n.width)) - x + 22;
     const header = Math.max(46, wrapText(group.label, width - 34, OUTPUT_THEME.groupFontSize).length * 17 + 24);
-    const y = Math.min(...members.map(n => n.y)) - header;
-    const height = Math.max(...members.map(n => n.y + n.height)) - y + 22;
+    let y = Math.min(...members.map(n => n.y)) - header;
+    let height = Math.max(...members.map(n => n.y + n.height)) - y + 22;
+    if(compound){const box=compound.groups.get(group.id)!;x=box.x;y=box.y;width=box.width;height=box.height;}
     groupBoxes.set(group.id, { group, x, y, width, height });
     groupLabels.push({ x: x + 16, y: y + 9, width: Math.min(width - 32, textWidth(group.label, OUTPUT_THEME.groupFontSize)), height: wrapText(group.label, width - 34, OUTPUT_THEME.groupFontSize).length * 17 + 5 });
   }
@@ -711,7 +785,10 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
       ? limit / Math.max(1, anchor, requests.length - anchor - 1)
       : Math.min(preferredSpacing, limit / Math.max(1, pivot, requests.length - pivot - 1));
     requests.forEach((request, i) => {
-      const point = port(node, side, (i - anchor) * spacing);
+      const offset=compound&&groupBoxes.has(node.node.id)
+        ? Math.max(side==='left'||side==='right'?-node.height/2+46:-limit,Math.min(limit,request.delta+(i-anchor)*8))
+        : (i-anchor)*spacing;
+      const point = port(node, side, offset);
       if (node.screen && (side === 'left' || side === 'right')) {
         // Opposite faces share a corridor: reserve arrival heights across both cards.
         const cell = cells.get(node.node.id)!;
@@ -732,7 +809,16 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   // Establish simple aligned routes first, then route branches around them.
   specs.sort((a, b) => Number(aligned(b)) - Number(aligned(a)) || length([a.start, a.end]) - length([b.start, b.end]) || compareKey(edgeKey(a), edgeKey(b)));
   let edges: DiagramLayoutEdge[] = [], usedLabels: DiagramBox[] = [];
-  const extent = { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: rowY[rows-1]! + maxH + 90 };
+  const extent = compound ? {width:Math.max(0,...nodes.map(n=>n.x+n.width),...[...compound.groups.values()].map(b=>b.x+b.width))+48,height:Math.max(0,...nodes.map(n=>n.y+n.height),...[...compound.groups.values()].map(b=>b.y+b.height))+48} : { width: marginX * 2 + columns * maxW + (columns - 1) * gapX, height: rowY[rows-1]! + maxH + 90 };
+  // Crossing a boundary is valid; running along it obscures both the edge and
+  // the containment boundary. Keep parallel segments clear of the stroke.
+  const boundaryOverlap = (a:DiagramPoint,b:DiagramPoint) => groups.reduce((sum,g)=>{
+    if(a.x===b.x&&(Math.abs(a.x-g.x)<4||Math.abs(a.x-g.x-g.width)<4))
+      return sum+Math.max(0,Math.min(Math.max(a.y,b.y),g.y+g.height)-Math.max(Math.min(a.y,b.y),g.y));
+    if(a.y===b.y&&(Math.abs(a.y-g.y)<4||Math.abs(a.y-g.y-g.height)<4))
+      return sum+Math.max(0,Math.min(Math.max(a.x,b.x),g.x+g.width)-Math.max(Math.min(a.x,b.x),g.x));
+    return sum;
+  },0);
   const pathCost = (points: DiagramPoint[]) => {
     const distance = length(points);
     const direct = length([points[0]!, points[points.length - 1]!]);
@@ -825,6 +911,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
       if(edge.sourceMarker&&length(points.slice(0,2))<28 || edge.targetMarker&&length(points.slice(-2))<28)continue;
       if (points.slice(1).some((p, i) => junctionLabels.some(box => segmentIntersectsBox(points[i]!, p, box, 8)))) continue;
       if (points.slice(1).some((p, i) => nodes.some(n => !(n === a && i === 0) && !(n === b && i === points.length - 2) && segmentIntersectsBox(points[i]!, p, n, -1)))) continue;
+      if(compound&&points.slice(1).some((p,i)=>groupLabels.some(box=>segmentIntersectsBox(points[i]!,p,box,4))))continue;
       for (let i = 1; i < points.length; i++) {
         for (const box of [...usedLabels, ...groupLabels]) if (segmentIntersectsBox(points[i - 1]!, points[i]!, box, 9)) score += 3000;
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
@@ -876,6 +963,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
           if (n.node.id === e.edge.from && k === 1 || n.node.id === e.edge.to && k === e.points.length - 1) continue;
           if (segmentIntersectsBox(a,b,n,-1)) cost += 1e9;
         }
+        if(compound)for(const box of groupLabels)if(segmentIntersectsBox(a,b,box,4))cost+=1e9;
         for (const other of edges) if (other !== e && other.labelBox && segmentIntersectsBox(a, b, other.labelBox, 4)) cost += 10000;
         for (const other of edges.slice(i + 1)) {
           for (let j = 1; j < other.points.length; j++) {
@@ -959,6 +1047,30 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
         if (local.cost < best.cost) { best = local; improved = true; }
       }
       if (!improved) break;
+    }
+  }
+  // Slide only internal segments off group strokes. Keep endpoints, bend
+  // count and route length; reject nudges that worsen the complete solution.
+  const boundaryLength=(points:DiagramPoint[])=>points.slice(1).reduce((sum,p,i)=>sum+boundaryOverlap(points[i]!,p),0);
+  if(groups.length)for(const edge of edges){
+    if(edge.labelBox)continue;
+    for(let i=1;i<edge.points.length-2;i++){
+      const original=edge.points,a=original[i]!,b=original[i+1]!;
+      if(!boundaryOverlap(a,b))continue;
+      const oldOverlap=boundaryLength(original),oldCost=solutionCost(),oldLength=length(original);
+      for(const offset of [-8,8,-12,12,-16,16]){
+        const points=original.map(p=>({...p}));
+        if(a.x===b.x){points[i]!.x+=offset;points[i+1]!.x+=offset;}
+        else {points[i]!.y+=offset;points[i+1]!.y+=offset;}
+        if(length(points)>oldLength+.001||boundaryLength(points)>=oldOverlap)continue;
+        if(points.some(p=>p.x<8||p.y<titleHeight+8))continue;
+        // Adjacent segments must retain direction, including terminal stubs.
+        if([i,i+2].some(k=>{const before=original[k-1]!,after=original[k]!,p=points[k-1]!,q=points[k]!;return (after.x-before.x)*(q.x-p.x)+(after.y-before.y)*(q.y-p.y)<=0;}))continue;
+        if(points.slice(1).some((p,k)=>nodes.some(n=>!(n.node.id===edge.edge.from&&k===0)&&!(n.node.id===edge.edge.to&&k===points.length-2)&&segmentIntersectsBox(points[k]!,p,n,-1))||groupLabels.some(g=>segmentIntersectsBox(points[k]!,p,g,4))))continue;
+        edge.points=points;
+        if(solutionCost()<=oldCost+.001)break;
+        edge.points=original;
+      }
     }
   }
   const width = Math.ceil(Math.max(extent.width, ...groups.map(group => group.x + group.width + 24), ...edges.flatMap(e => e.points.map(p => p.x + 48)), ...usedLabels.map(b => b.x + b.width + 30)));

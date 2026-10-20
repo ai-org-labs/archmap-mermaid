@@ -1,0 +1,23 @@
+%% archmap: {"grid": {"columns": 4, "items": [{"id": "G0", "rowSpan": 2, "colSpan": 2}, {"id": "G1"}, {"id": "G2", "rowSpan": 2}, {"id": "G3"}, {"id": "G4", "colSpan": 3}, {"id": "G5"}]}}
+flowchart LR
+subgraph G0[領域 0]
+a0[受付] --> b0[(保存)]
+end
+subgraph G1[領域 1]
+a1[受付] --> b1[(保存)]
+end
+subgraph G2[領域 2]
+a2[受付] --> b2[(保存)]
+end
+subgraph G3[領域 3]
+a3[受付] --> b3[(保存)]
+end
+subgraph G4[領域 4]
+a4[受付] --> b4[(保存)]
+end
+subgraph G5[領域 5]
+a5[受付] --> b5[(保存)]
+end
+a0 --> a3
+b2 --> b5
+

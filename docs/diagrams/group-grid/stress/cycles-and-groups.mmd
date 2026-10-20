@@ -1,0 +1,20 @@
+%% archmap: {"groups": {"P": {"grid": {"columns": 2, "items": [{"id": "A"}, {"id": "B"}, {"id": "C", "colSpan": 2}]}}}}
+flowchart LR
+subgraph P[システム]
+subgraph A[受付]
+a[要求] --> b[検証]
+b --> a
+b --> b
+end
+subgraph B[処理]
+c[実行] <--> d[確認]
+end
+subgraph C[保存]
+e[(DB)]
+end
+end
+A --> B
+b --> c
+d --> e
+C --> A
+e --> a

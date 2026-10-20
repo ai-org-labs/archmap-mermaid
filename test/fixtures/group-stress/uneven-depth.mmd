@@ -1,0 +1,25 @@
+%% archmap: {"groups": {"Root": {"grid": {"columns": 2, "items": [{"id": "Small"}, {"id": "Deep", "rowSpan": 2}, {"id": "Empty"}]}}, "L2": {"grid": {"columns": 1, "items": [{"id": "L3"}, {"id": "x"}]}}}}
+flowchart LR
+subgraph Root[全体]
+direction TB
+subgraph Small[小さい枝]
+a[小さな処理]
+end
+subgraph Deep[深い枝]
+direction LR
+subgraph L2[第二階層]
+direction TB
+subgraph L3[第三階層]
+direction RL
+b[受付] --> c[処理] --> d[保存]
+end
+x[補助]
+end
+y[結果]
+end
+subgraph Empty[空のグループ]
+end
+end
+a --> b
+d --> y
+x --> c

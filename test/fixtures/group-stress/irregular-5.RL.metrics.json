@@ -1,0 +1,14 @@
+{
+  "nodeHits": 0,
+  "headerHits": 0,
+  "labelHits": 0,
+  "crossings": 0,
+  "sharedSegments": 0,
+  "bends": 17,
+  "maxDetour": 1,
+  "detour": 1,
+  "aspect": 3.326,
+  "nodeAreaRatio": 0.132,
+  "width": 2528,
+  "height": 760
+}

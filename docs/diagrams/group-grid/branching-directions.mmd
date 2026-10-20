@@ -1,0 +1,37 @@
+flowchart LR
+subgraph Platform[サービス基盤 / 子が3つ]
+ direction LR
+ subgraph Web[Web / LR]
+  direction LR
+  gateway[受付API] --> auth[認証]
+ end
+ subgraph Workers[処理 / 内部もグリッド]
+  direction TB
+  subgraph Fast[即時処理 / TB]
+   direction TB
+   validate[検証] --> execute[実行]
+  end
+  subgraph Batch[バッチ / LR]
+   direction LR
+   aggregate[集計] --> report[レポート]
+  end
+  subgraph Retry[再試行 / TB]
+   direction TB
+   retry[再試行ワーカー]
+  end
+ end
+ subgraph Data[データ / 横2列]
+  direction LR
+  db[(業務DB)] --> archive[(アーカイブ)]
+ end
+end
+subgraph External[外部サービス / TB]
+ direction TB
+ payment[決済] --> receipt[通知]
+end
+auth --> validate
+execute --> db
+retry --> execute
+report --> archive
+gateway --> payment
+receipt --> retry

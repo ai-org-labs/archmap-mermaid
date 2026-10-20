@@ -8,7 +8,7 @@ node tools/build-plugin.mjs --distribution
 npm run test:plugin
 ```
 
-OpenAI申請用: `plugin-dist/archmap-mermaid-plugin-0.1.5.zip`。ZIP直下にportable `plugin.json`を置き、ローカル実行を必要とするプラグインとして`requires_local_executor: true`を宣言しています。同梱Skillはプラグインの実行手順であり、独立したSkill配布は行いません。
+OpenAI申請用: `plugin-dist/archmap-mermaid-plugin-0.1.6.zip`。ZIP直下にportable `plugin.json`を置き、ローカル実行を必要とするプラグインとして`requires_local_executor: true`を宣言しています。同梱Skillはプラグインの実行手順であり、独立したSkill配布は行いません。
 
 ## 公開手順
 

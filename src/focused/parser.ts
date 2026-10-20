@@ -43,7 +43,7 @@ async function parse(source: string): Promise<DiagramModel> {
     const metaLines=source.split('\n').map((value,index)=>({value,index})).filter(x=>/^\s*%%\s*archmap:/.test(x.value));
     if(metaLines.length>1) throw new Error('%% archmap: は1文書に1行だけ指定してください。');
     if(metaLines[0]){ const value=JSON.parse(metaLines[0].value.replace(/^\s*%%\s*archmap:\s*/,''));if(!record(value))throw new Error('archmap の補助設定はJSONオブジェクトです。');metadata=value; }
-    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions'].includes(key)) error(`未対応の補助設定: ${key}`);
+    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups'].includes(key)) error(`未対応の補助設定: ${key}`);
     if(metadata.view!==undefined && !kinds.includes(String(metadata.view)))error('view が不正です。');
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     let rendererConfig:RecordValue={};
@@ -245,6 +245,28 @@ async function parse(source: string): Promise<DiagramModel> {
           else if(key==='shape' && value==='modal' && model.kind==='screens')n.shape='modal';
           else error(`nodes.${id}.${key} は未対応、または値が不正です。`);
         }
+      }
+    }
+    const readGrid=(g:unknown,parent?:string):DiagramModel['grid']=>{
+      const integer=(v:unknown):v is number=>typeof v==='number'&&Number.isInteger(v)&&v>=1&&v<=20;
+      if(!record(g)||!integer(g.columns)||!Array.isArray(g.items)||Object.keys(g).some(k=>!['columns','items','sizing'].includes(k))||g.sizing!==undefined&&!['content','equal'].includes(String(g.sizing))){error('grid は columns (1〜20)、items、任意の sizing (content / equal) で指定してください。');return;}
+      const children=[...model.groups.filter(x=>x.parent===parent),...model.nodes.filter(x=>x.group===parent)].map(x=>x.id);
+      const seen=new Set<string>(),items:NonNullable<DiagramModel['grid']>['items']=[];
+      for(const item of g.items){
+        if(!record(item)||typeof item.id!=='string'||!children.includes(item.id)||seen.has(item.id)||Object.keys(item).some(k=>!['id','rowSpan','colSpan'].includes(k))||item.rowSpan!==undefined&&!integer(item.rowSpan)||item.colSpan!==undefined&&(!integer(item.colSpan)||item.colSpan>g.columns)){error('grid.items は直下のノード・subgraphの id を重複なく指定し、有効な rowSpan / colSpan を使ってください。');continue;}
+        seen.add(item.id);items.push({id:item.id,rowSpan:item.rowSpan as number|undefined,colSpan:item.colSpan as number|undefined});
+      }
+      if(!items.length||children.some(id=>!seen.has(id)))error('grid.items に直下の全ノード・subgraphを1回ずつ指定してください。');
+      if(model.kind!=='system'||model.nodes.some(n=>n.at))error('grid は system 用です。nodes.at とは併用できません。');
+      return {columns:g.columns,items,sizing:g.sizing as 'content'|'equal'|undefined};
+    };
+    if(metadata.grid!==undefined)model.grid=readGrid(metadata.grid);
+    if(metadata.groups!==undefined){
+      if(!record(metadata.groups))error('groups はsubgraph IDをキーにしたオブジェクトです。');
+      else for(const [id,value] of Object.entries(metadata.groups)){
+        const group=model.groups.find(g=>g.id===id);
+        if(!group||!record(value)||value.grid===undefined||Object.keys(value).some(k=>k!=='grid')){error(`groups.${id} は既存subgraphの grid を指定してください。`);continue;}
+        group.grid=readGrid(value.grid,id);
       }
     }
     if(metadata.actions!==undefined){

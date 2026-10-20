@@ -27,14 +27,20 @@ export interface DiagramNode {
   color: DiagramColor;
   line: number;
 }
-export interface DiagramGroup { paint?: DiagramPaint; collapsed?: boolean; direction?: DiagramDirection; id: string; label: string; color: DiagramColor; line: number; parent?: string; concurrent?: boolean }
+export interface DiagramGroup { grid?: DiagramGrid; paint?: DiagramPaint; collapsed?: boolean; direction?: DiagramDirection; id: string; label: string; color: DiagramColor; line: number; parent?: string; concurrent?: boolean }
 export interface DiagramScreenAction { node: string; label: string; to?: string; state?: string; effect?: string; when?: string; close?: boolean; line: number }
 export interface DiagramEdge { central?: "source" | "target" | "both"; invisible?: boolean; thick?: boolean;  relationship?: "association" | "include" | "extend" | "generalization"; sourceMarker?: string; targetMarker?: string; arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { fill?: string; action: "alt" | "opt" | "loop" | "par" | "else" | "and" | "end" | "critical" | "option" | "break" | "rect"; label: string; afterEdge: number; line: number }
 export interface DiagramNoteEvent { from: string; to: string; label: string; placement: "left" | "right" | "over"; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }
 export interface DiagramDiagnostic { line: number; severity: "error" | "warning"; message: string }
+export interface DiagramGrid {
+  sizing?: "content" | "equal";
+  columns: number;
+  items: { id: string; rowSpan?: number; colSpan?: number }[];
+}
 export interface DiagramModel {
+  grid?: DiagramGrid;
   kind: DiagramKind;
   direction: DiagramDirection;
   style?: "cards" | "icons";

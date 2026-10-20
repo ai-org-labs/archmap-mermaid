@@ -23,3 +23,5 @@
 配色が必要な場合は標準Mermaidの style / classDef / class で fill・stroke・color を指定する。ノード・グループに適用できる。色だけに意味を依存させず、ラベルも併用する。詳細な対応範囲は docs/SYNTAX.md を参照する。
 
 担当別の業務フローには view:bpmn と標準flowchartを使える。BPMN 2.0完全対応とは説明せず、対象要素・レーン制約は docs/SYNTAX.md の「業務フロー」を参照する。
+
+環境×サービスなどの行列や複数セルを占める枠が必要なら、SYNTAX.mdの `grid` 表示設定を利用する。文書直下は `grid`、各親の内部は `groups.<ID>.grid` に、`columns` と全直下要素の配置順を明示する。横結合は `colSpan`、縦結合は `rowSpan`。通常は `sizing:content`、全列・全行を均等化したい場合だけ `equal`。接続の意味と配置設定を混同しない。

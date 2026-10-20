@@ -1,0 +1,30 @@
+flowchart LR
+subgraph G0["Layer 1 · LR"]
+ direction LR
+ n0a[入口 1] --> n0b[処理 1]
+subgraph G1["Layer 2 · TB"]
+ direction TB
+ n1a[入口 2] --> n1b[処理 2]
+subgraph G2["Layer 3 · LR"]
+ direction LR
+ n2a[入口 3] --> n2b[処理 3]
+subgraph G3["Layer 4 · TB"]
+ direction TB
+ n3a[入口 4] --> n3b[処理 4]
+subgraph G4["Layer 5 · LR"]
+ direction LR
+ n4a[入口 5] --> n4b[処理 5]
+subgraph G5["Layer 6 · TB"]
+ direction TB
+ n5a[入口 6] --> n5b[処理 6]
+end
+ n4b --> G5
+end
+ n3b --> G4
+end
+ n2b --> G3
+end
+ n1b --> G2
+end
+ n0b --> G1
+end

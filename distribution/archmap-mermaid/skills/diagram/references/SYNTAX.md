@@ -379,3 +379,60 @@ flowchart LR
 エディタの折りたたみ、スワイプ・マウスドラッグによる移動、2本指ピンチ・ホイールズーム、Fit、SVG / PNG / .mmd保存に対応します。下書きはこのブラウザーに保存します。
 
 オフライン版は、パーサー・レンダラー・アイコン・構文リファレンス・AIプロンプトを含む単一HTMLです。ダウンロード後はネット接続なしで開けます。アイコン一覧も全件をUTF-8テキストで保存できます。
+
+## Subgraphのグリッド配置（system）
+
+最上位と各subgraph内で、直下の要素を行優先・左上詰めで配置できます。ノードと接続は標準Mermaidに書き、配置だけをコメントで指定します。
+
+```mermaid
+%% archmap: {"grid":{"columns":2,"items":[{"id":"A"},{"id":"B"},{"id":"C","colSpan":2}]}}
+flowchart TB
+  subgraph A[商用環境]
+    a[API] --> ad[(DB)]
+  end
+  subgraph B[開発環境]
+    b[API] --> bd[(DB)]
+  end
+  subgraph C[共通サービス]
+    c[監視] --> cd[(ログ保管)]
+  end
+```
+
+- `columns`：グリッドの列数（1〜20）。
+- `items`：配置順。その階層の直下にあるノード・subgraphのIDを全て1回ずつ指定します。孫を直接指定することはできません。宣言順には依存しません。
+- `colSpan`：占有列数（既定1、columns以下）。`rowSpan`：占有行数（既定1、1〜20）。`colSpan:2` は横2セル、`rowSpan:2` は縦2セルを結合します。
+- 各itemが収まる空き領域を上から左から探します。後のitemが先のitemの横の空きに入る場合があります。
+- `sizing`：既定は `content`。各列・行の必要寸法からサイズを決めます。同じ列の左右端、同じ行の上下端は揃います。`equal` は全列・全行のサイズを均等化します。内容は左上に寄せ、ノードや文字を縮小しません。内部の `direction`、入れ子、接続は維持します。
+- 対象は `system`。グリッドにはノードとsubgraphを混在できます。`nodes.*.at` とは併用できません。行列の名前は自動推定しないため、subgraph名などに環境・サービス名を記述してください。
+- セル結合は配置上の指定であり、サービスの共有や接続を意味しません。線が多い場合の交差を完全に防ぐ指定でもありません。
+
+例：[3環境×4サービス](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/environment-matrix.mmd)、[横結合](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/horizontal-span.mmd)、[縦結合](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/vertical-span.mmd)。
+
+### 階層ごとの指定
+
+`grid` は文書直下、`groups.<ID>.grid` はそのsubgraphの直下の配置です。各階層で列数・セル結合・sizingを変えられます。グリッドを持つ親ではグリッドが子の並べ方を決め、子の内部方向には子自身の `direction` が適用されます。グリッドを持たない入れ子ではLR / RL / TB / BTと接続に従って配置します。
+
+```mermaid
+%% archmap: {"groups":{"Parent":{"grid":{"columns":2,"items":[{"id":"A"},{"id":"B"},{"id":"C","colSpan":2}]}}}}
+flowchart LR
+subgraph Parent[親]
+  subgraph A[子A]
+    direction LR
+    a1[受付] --> a2[認証]
+  end
+  subgraph B[子B]
+    direction TB
+    b1[検証] --> b2[実行]
+  end
+  subgraph C[子C]
+    direction LR
+    c1[(DB)] --> c2[(保管)]
+  end
+end
+a2 --> b1
+b2 --> c1
+```
+
+子から必要寸法を計算し、親は子を一つの箱として配置します。深い入れ子の寸法を全ノードの間隔へ一律に加算しません。システム図の入れ子・グリッドに適用し、手動at指定や他の図種固有の配置は維持します。折りたたんだsubgraphの内部配置は展開時に適用します。
+
+例：[親に子3つ・孫グリッド・階層横断接続](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/nested-three-children.mmd)、[6階層の方向切替](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/nested-directions.mmd)。

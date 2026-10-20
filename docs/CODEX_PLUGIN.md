@@ -11,7 +11,7 @@ npm run test:plugin
 ```
 
 `plugin-dist/plugins/archmap-mermaid/` が自己完結したプラグイン本体。
-`plugin-dist/archmap-mermaid-plugin-0.1.2.tgz` が配布用アーカイブ。
+`plugin-dist/archmap-mermaid-plugin-0.1.6.tgz` が配布用アーカイブ。
 `plugin-dist/.agents/plugins/marketplace.json` がローカル検証用カタログ。
 ソースの `plugins/` は開発用で、レンダラーと構文ガイドはビルド時に同梱する。開発用ディレクトリだけを配布しない。
 
@@ -41,7 +41,7 @@ SVG・HTML・診断JSONを出力。PNGも必要なら `--png` を指定する。
 Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
 
 ```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.11
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.12
 codex plugin add archmap-mermaid@archmap
 ```
 
@@ -84,11 +84,11 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 ```sh
 codex plugin marketplace remove archmap
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.11
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.12
 codex plugin add archmap-mermaid@archmap
 ```
 
-`codex plugin list`で`installed, enabled`とバージョン`0.1.2`を確認してください。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
+`codex plugin list`で`installed, enabled`とバージョン`0.1.6`を確認してください。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
 
 ## 開発と一緒に図を維持する
 
