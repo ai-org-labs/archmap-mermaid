@@ -197,4 +197,37 @@ eventmodeling
   tf 07 rmo Order.Status ->> 03 ->> 06
   tf 08 ui Order.Confirmation
 `},
+{id:'gantt',title:'ガントチャート',subtitle:'日付・進捗・依存関係を、読みやすい工程表に。',source:`---
+title: 新サービスの公開計画
+config:
+  theme: base
+  themeVariables:
+    taskBkgColor: "#477fa8"
+    activeTaskBkgColor: "#168575"
+    critBkgColor: "#ce5960"
+    doneTaskBkgColor: "#91a4b5"
+---
+gantt
+  dateFormat YYYY-MM-DD
+  axisFormat %m/%d
+  tickInterval 1week
+  weekday monday
+  excludes weekends
+  todayMarker off
+
+  section 計画・設計
+  要件整理と合意                 :done, scope, 2026-11-02, 3d
+  システム設計                   :active, design, after scope, 4d
+  運用・セキュリティ設計         :security, after scope, 3d
+
+  section 開発・検証
+  API・データ基盤の実装         :api, after design, 5d
+  画面の実装                     :ui, after design, 4d
+  結合テスト                     :crit, test, after api ui security, 3d
+  利用者による受入確認           :crit, review, after test, 2d
+
+  section 公開
+  運用手順と切戻し手順の準備     :ops, after security, 6d
+  本番公開                       :milestone, release, after review ops, 0d
+`},
 ];

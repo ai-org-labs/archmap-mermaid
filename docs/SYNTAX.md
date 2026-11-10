@@ -20,7 +20,7 @@ ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自
 | Block／ブロック図 | × | — |
 | Requirement／要求図 | × | — |
 | GitGraph | × | — |
-| Gantt／ガントチャート | × | — |
+| Gantt／ガントチャート | ○ | section・日付/期間・休日除外・after/until・進捗・マイルストーン・配色。詳細はガント節 |
 | Timeline／タイムライン | ○ | 期間・複数イベント・section。記述順、等間隔の年表 |
 | Event Modeling | ○（基本構文） | frame / reset / 明示参照 / data。独立note・GWT・entity定義は未対応 |
 | User Journey | × | — |
@@ -44,6 +44,7 @@ ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自
 | ユースケース図 | `usecase-beta` | 不要 |
 | システム概要・変更影響 | `flowchart LR` | `overview` |
 | 施策・出来事の年表 | `timeline` | 宣言から判定 |
+| 工程・日程・依存関係 | `gantt` | 宣言から判定 |
 | 情報の変化 | `eventmodeling` | 宣言から判定 |
 | システム構成図 | `flowchart LR` | `system`（既定） |
 | レイヤースタック図 | `flowchart TB` | `layers` |
@@ -581,3 +582,53 @@ flowchart LR
 開始行は `%% archmap: {`、続くJSONの全行に `%%` を付け、`%% }` で閉じます。標準JSONなので末尾カンマやJSON内コメントは使えません。1文書に設定ブロックは1つ。従来の1行形式も有効です。プレイグラウンドのカード／アイコン切り替えでも複数行形式を保持します。
 
 タイトルは標準MermaidのYAML frontmatter（先頭の `---`）に `title:` で指定します。archmapブロックをfrontmatterの前に置いても解析できます。図の上部に表示し、長いタイトルは折り返して領域を確保します。複数行タイトルはYAMLの `title: |` が使用できます。`archmap.title` は設定項目ではありません。
+
+
+## ガントチャート
+
+Mermaid標準の `gantt` を使います。日付・期間・依存関係の計算は公式Mermaid 12.3.0、描画はArchMapです。タスク名と期間を左の独立欄に置き、短いバーでも名前を省略しません。sectionの帯、休日の薄い網掛け、日付軸、依存線で工程を読み取れます。
+
+```mermaid
+---
+title: 新サービスの公開計画
+config:
+  theme: base
+  themeVariables:
+    taskBkgColor: "#477fa8"
+    activeTaskBkgColor: "#168575"
+    critBkgColor: "#ce5960"
+    doneTaskBkgColor: "#91a4b5"
+---
+gantt
+  dateFormat YYYY-MM-DD
+  axisFormat %m/%d
+  tickInterval 1week
+  weekday monday
+  excludes weekends
+  todayMarker off
+
+  section 計画・設計
+  要件整理と合意                 :done, scope, 2026-11-02, 3d
+  システム設計                   :active, design, after scope, 4d
+  運用・セキュリティ設計         :security, after scope, 3d
+
+  section 開発・検証
+  API・データ基盤の実装         :api, after design, 5d
+  画面の実装                     :ui, after design, 4d
+  結合テスト                     :crit, test, after api ui security, 3d
+  利用者による受入確認           :crit, review, after test, 2d
+
+  section 公開
+  運用手順と切戻し手順の準備     :ops, after security, 6d
+  本番公開                       :milestone, release, after review ops, 0d
+
+```
+
+- `dateFormat`、開始日＋終了日/期間、期間のみの順次実行、`after a b`、`until a b` に対応。実線はafter/順次実行、破線はuntil。複数依存を省略しません。
+- `section`、`done`、`active`、`crit`、`milestone`、`vert`、`inclusiveEndDates`、`excludes` / `includes`、`weekend friday|saturday` を公式の日付計算に従って反映。マイルストーンは標準どおり期間の中点に配置します。
+- `axisFormat` は標準の時刻書式。`tickInterval 1day / 1week / 1month` 等と `weekday monday` に対応します。目盛りが密な場合は読みやすい間隔に間引きます。時間単位・分単位の工程にも対応します。
+- `todayMarker off` で今日の線を非表示。今日が表示範囲内の場合のみ表示します。今日を示す線の色は `themeVariables.todayLineColor`。`todayMarker` の任意CSSは適用せず警告します。
+- 配色は標準frontmatterの `config.themeVariables` で指定します。`taskBkgColor` / `taskBorderColor`、`activeTaskBkgColor` / `activeTaskBorderColor`、`doneTaskBkgColor` / `doneTaskBorderColor`、`critBkgColor` / `critBorderColor`、`taskTextColor`、`gridColor`、`todayLineColor` を使用できます。CSSリテラル色のみ許可し、外部URL・任意CSSは使用しません。
+- 特定タスクのバーだけ変える場合は既存表示設定 `%% archmap: {"nodes":{"api":{"color":"purple"}}}` を使用できます（blue / green / orange / purple / gray）。日程や依存関係はMermaid本文に記述します。これは標準Mermaidのタスク構文を増やすものではありません。
+- 可読性のため1タスク1行・上部日付軸を採用します。`topAxis` の有無にかかわらず上部に表示し、compact/行高/余白等のMermaid配置設定は適用しません。未対応設定は警告します。click/link/callback、任意CSSは未対応です。
+- 日付未解決、依存の循環、不明なタスクID、重複ID、逆転した日付はエラー。400タスク・1,000依存・100年以内を上限とします。手動grid/atは日付軸を崩すため使用できません。長大な計画は工程ごとに分割してください。

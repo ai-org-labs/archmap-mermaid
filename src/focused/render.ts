@@ -1,3 +1,4 @@
+import {renderGantt} from './gantt.js';
 import {focusModel,attentionStyle,focusTypography} from './attention.js';
 import {OUTPUT_THEME, palette} from './theme.js';
 import {safePaint} from './paint.js';
@@ -142,10 +143,11 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
 }
 
 export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramRenderResult {
+  if(model.kind==='gantt')return renderGantt(model);
   const sourceModel=model;
   model=focusModel(model);
   const start = performance.now(), layout = computeDiagramLayout(model, options);
-  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram', bpmn:'Business process', overview:'System overview', timeline:'Timeline', eventmodeling:'Event modeling' }[model.kind]);
+  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram', bpmn:'Business process', overview:'System overview', timeline:'Timeline', eventmodeling:'Event modeling', gantt:'Gantt chart' }[model.kind]);
   const groups = layout.groups.map(({ group, x, y, width, height }) => {
     const preset = palette[group.color] ?? palette.gray;
     const paint=Object.fromEntries(Object.entries(group.paint??{}).filter(([key,value])=>safePaint(value,key==='color')));

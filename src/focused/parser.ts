@@ -1,3 +1,5 @@
+import {readGantt} from './gantt.js';
+import type GanttDB from 'mermaid/dist/diagrams/gantt/ganttDb.js';
 import {readArchmapMetadata} from './metadata.js';
 import mermaid from 'mermaid';
 import {parse as parseOfficial} from '@mermaid-js/parser';
@@ -17,7 +19,7 @@ import { getIcon } from '../icons.js';
 
 export const DIAGRAM_LIMITS = {sourceLength:500_000,nodes:400,groups:200,edges:1000,gridCoordinate:400,groupDepth:8} as const;
 const colors = ['blue','green','orange','purple','gray'];
-const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn','overview','timeline','eventmodeling'];
+const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn','overview','timeline','eventmodeling','gantt'];
 type RecordValue = Record<string, unknown>;
 const record = (x: unknown): x is RecordValue => !!x && typeof x === 'object' && !Array.isArray(x);
 // Mermaid's diagram databases/configuration are stateful; serialize all parsing,
@@ -68,15 +70,17 @@ async function parse(source: string): Promise<DiagramModel> {
     });
     // Source-supplied settings must not change parser security or inject CSS.
     // Configuration affecting ArchMap's output is applied explicitly below.
-    if(Object.keys(rendererConfig).some(k=>k!=='sequence') || record(rendererConfig.sequence)&&Object.keys(rendererConfig.sequence).some(k=>k!=='showSequenceNumbers'))warning('Mermaidのテーマ・レイアウト設定はArchMapのテーマと配置に統一します。');
+    if(Object.keys(rendererConfig).some(k=>!(/^\s*gantt\b/m.test(mermaidSource)?['sequence','theme','themeVariables','gantt']:['sequence']).includes(k)) || record(rendererConfig.sequence)&&Object.keys(rendererConfig.sequence).some(k=>k!=='showSequenceNumbers'))warning('Mermaidのテーマ・レイアウト設定はArchMapのテーマと配置に統一します。');
     if(model.diagnostics.some(d=>d.severity==='error'))return model;
     const body=mermaidSource.replace(/^\s*%%.*$/gm,'').trim();
-    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b|timeline\b|eventmodeling\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling です。');return model;}
+    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b|timeline\b|eventmodeling\b|gantt\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling / gantt です。');return model;}
     if(/(?:^|;)\s*click\s+/m.test(body)){error('click / リンク操作は未対応です。');return model;}
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
     const diagram=await mermaid.mermaidAPI.getDiagramFromText(mermaidSource);
     model.title=text(diagram.db.getDiagramTitle?.()) || model.title;
-    if(diagram.type==='eventmodeling') {
+    if(diagram.type==='gantt') {
+      Object.assign(model,readGantt(diagram.db as typeof GanttDB,rendererConfig,text,warning));
+    } else if(diagram.type==='eventmodeling') {
       const temporal=readEventModel(await parseOfficial('eventmodeling',mermaidSource));Object.assign(model,{...temporal,title:temporal.title||model.title});
     } else if(diagram.type==='timeline') {
       model.kind='timeline'; model.direction='TD';
@@ -251,7 +255,7 @@ async function parse(source: string): Promise<DiagramModel> {
       for(const e of data.edges)model.edges.push({from:e.start,to:e.end,label:text(e.label),style:e.pattern==='dashed'?'dashed':'solid',arrow:e.arrowhead==='none'?'none':'open',bidirectional:false,line:0});
       if(db.getLinks().size)error('状態の click / リンク操作は未対応です。');
     }
-    if(['timeline','eventmodeling'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
+    if(['timeline','eventmodeling','gantt'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
     const calloutSize=(value:unknown):number|undefined=>{
       const headings:Record<string,number>={h1:36,h2:30,h3:26,h4:22,h5:18,h6:16};
       return typeof value==='string'?headings[value]:typeof value==='number'&&Number.isFinite(value)&&value>=12&&value<=48?value:undefined;
@@ -288,7 +292,7 @@ async function parse(source: string): Promise<DiagramModel> {
           else if(key==='callout' && model.kind==='overview' && typeof value==='string' && value.trim() && value.length<=300)n.callout=value;
           else if(key==='calloutSize' && model.kind==='overview' && calloutSize(value)!==undefined)n.calloutSize=calloutSize(value);
           else if(key==='description' && typeof value==='string')n.description=value;
-          else if(key==='color' && colors.includes(String(value)))n.color=value as DiagramColor;
+          else if(key==='color' && colors.includes(String(value))){n.color=value as DiagramColor;if(model.kind==='gantt')n.paint={fill:({blue:'#2867a5',green:'#247954',orange:'#a56b18',purple:'#7652ad',gray:'#5d7286'} as const)[n.color]};}
           else if(key==='shape' && value==='modal' && model.kind==='screens')n.shape='modal';
           else error(`nodes.${id}.${key} は未対応、または値が不正です。`);
         }
@@ -307,7 +311,7 @@ async function parse(source: string): Promise<DiagramModel> {
       if(!['system','overview'].includes(model.kind)||model.nodes.some(n=>n.at))error('grid は system / overview 用です。nodes.at とは併用できません。');
       return {columns:g.columns,items,sizing:g.sizing as 'content'|'equal'|undefined};
     };
-    if(metadata.grid!==undefined)model.grid=readGrid(metadata.grid);
+    if(metadata.grid!==undefined){if(model.kind==='gantt')error('ガントではgridではなく日付軸で配置します。');else model.grid=readGrid(metadata.grid);}
     if(metadata.groups!==undefined){
       if(!record(metadata.groups))error('groups はsubgraph IDをキーにしたオブジェクトです。');
       else for(const [id,value] of Object.entries(metadata.groups)){
@@ -346,7 +350,7 @@ async function parse(source: string): Promise<DiagramModel> {
     for(const edge of model.edges)if(!ids.has(edge.from)||!ids.has(edge.to))error('接続先のノードまたはグループが存在しません。');
     for(const group of model.groups){const seen=new Set([group.id]);let p=group.parent;while(p){if(seen.has(p)){error('グループの循環は未対応です。');break;}seen.add(p);p=model.groups.find(g=>g.id===p)?.parent;}if(seen.size>8)error('グループの入れ子は8段までです。');}
     if(model.style==='icons' && !['system','layers'].includes(model.kind))error('icons 表示は system / layers 専用です。');
-    if(['timeline','eventmodeling'].includes(model.kind)&&model.nodes.some(n=>n.at))error('時系列の順序を保つため at は使用できません。');
+    if(['timeline','eventmodeling','gantt'].includes(model.kind)&&model.nodes.some(n=>n.at))error('時系列の順序を保つため at は使用できません。');
     if(['sequence','layers'].includes(model.kind) && model.nodes.some(n=>n.at))warning('この表示では at を使わず、参加者またはグループの順序で配置します。');
     if(model.nodes.some(n=>n.at)&&model.groups.some(g=>g.direction))warning('手動配置 at を優先するため、グループのdirectionは自動配置には使いません。');
     let fragmentDepth=0;const activations=new Map<string,number>();

@@ -1,0 +1,13 @@
+gantt
+ title 当日の移行作業
+ dateFormat YYYY-MM-DD HH:mm
+ axisFormat %H:%M
+ tickInterval 1hour
+ todayMarker off
+ section 準備
+バックアップ :done, backup, 2026-11-11 09:00, 90m
+切戻し確認 :active, check, after backup, 30m
+ section 切替
+データ移行 :crit, move, after check, 2h
+監視・動作確認 :watch, after move, 1h
+完了 :milestone, complete, after watch, 0d

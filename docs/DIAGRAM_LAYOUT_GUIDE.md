@@ -70,3 +70,8 @@ Timelineは縦の年表、Event Modelingはレーン×記述順のフレーム�
 
 
 概略図の主経路を強調するときは `routing:"straight"` と標準Mermaidの `linkStyle ... stroke-width:4px` を検討する。線幅は0.5〜16px。直線は障害物を迂回しないため、SVGで交差を確認し、at配置または edges の個別 routing:"orthogonal" で調整する。仕様は docs/SYNTAX.md の「直線接続と線幅」を参照する。
+
+
+## ガントチャート
+
+工程は標準ganttで記述する。sectionで工程を分け、after/untilの依存を残す。ArchMapは長いタスク名を左欄で折り返し、日付軸にバーを配置するため、名称をバー幅へ押し込めない。状態色はthemeVariables、特定工程の強調はnodes.ID.color。全体の日程と細かい時間単位の作業は別図にすると読みやすい。

@@ -1,5 +1,5 @@
 /** The deliberately small ArchMap diagram model. Positions use a one-based grid. */
-export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn", "overview", "timeline", "eventmodeling"] as const;
+export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn", "overview", "timeline", "eventmodeling", "gantt"] as const;
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD" | "RL" | "BT";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
@@ -11,6 +11,7 @@ export interface DiagramNode {
   emphasis?: "new" | "changed" | "impact" | "unchanged";
   callout?: string;
   calloutSize?: number;
+  gantt?: {start:number; end:number; milestone:boolean; active:boolean; done:boolean; critical:boolean; vertical:boolean};
   temporal?: {order:number; lane:string; category:string};
   paint?: DiagramPaint;
   participantType?: string;
@@ -46,6 +47,7 @@ export interface DiagramGrid {
   items: { id: string; rowSpan?: number; colSpan?: number }[];
 }
 export interface DiagramModel {
+  gantt?: {axisFormat:string; tickInterval?:string; weekday:string; todayMarker:string; excluded:Array<[number,number]>; theme:Record<string,string>};
   routing?: "straight" | "orthogonal";
   grid?: DiagramGrid;
   kind: DiagramKind;
