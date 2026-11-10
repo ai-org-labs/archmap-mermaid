@@ -1,3 +1,4 @@
+import {readArchmapMetadata} from './metadata.js';
 import mermaid from 'mermaid';
 import {parse as parseOfficial} from '@mermaid-js/parser';
 import {readEventModel} from './temporal.js';
@@ -42,14 +43,13 @@ async function parse(source: string): Promise<DiagramModel> {
   if(source.length>DIAGRAM_LIMITS.sourceLength){error('ソースは500,000文字以内にしてください。');return model;}
   let metadata: RecordValue = {};
   try {
-    const metaLines=source.split('\n').map((value,index)=>({value,index})).filter(x=>/^\s*%%\s*archmap:/.test(x.value));
-    if(metaLines.length>1) throw new Error('%% archmap: は1文書に1行だけ指定してください。');
-    if(metaLines[0]){ const value=JSON.parse(metaLines[0].value.replace(/^\s*%%\s*archmap:\s*/,''));if(!record(value))throw new Error('archmap の補助設定はJSONオブジェクトです。');metadata=value; }
+    const extracted=readArchmapMetadata(source);
+    metadata=extracted.metadata;
     for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups','routing','edges'].includes(key)) error(`未対応の補助設定: ${key}`);
     if(metadata.view!==undefined && !kinds.includes(String(metadata.view)))error('view が不正です。');
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     let rendererConfig:RecordValue={};
-    let mermaidSource=source.replace(/^\s*%%\s*archmap:.*$/gm,'');
+    let mermaidSource=extracted.mermaidSource;
     const front=/^\s*---\s*\n([\s\S]*?)\n---/.exec(mermaidSource);
     if(front){
       const v=load(front[1],{schema:JSON_SCHEMA});

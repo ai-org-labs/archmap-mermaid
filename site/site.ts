@@ -1,3 +1,4 @@
+import {updateArchmapMetadata} from '../src/focused/metadata.js';
 import {prepareDiagramImages} from '../src/focused/images.js';
 import { parseDiagram } from "../src/focused/parser.js";
 import { renderDiagram } from "../src/focused/render.js";
@@ -317,14 +318,7 @@ function playground(): void {
   $("diagram-style").addEventListener("change", () => {
     const style = $<HTMLSelectElement>("diagram-style").value;
     try {
-      const lines = source.value.split(/\r?\n/);
-      const index = lines.findIndex(line => /^\s*%%\s*archmap:/.test(line));
-      const metadata = index < 0 ? {} : JSON.parse(lines[index]!.replace(/^\s*%%\s*archmap:\s*/, ""));
-      metadata.style = style;
-      const comment = `%% archmap: ${JSON.stringify(metadata)}`;
-      if(index >= 0) lines[index] = comment;
-      else { const header = lines.findIndex(line=>/^(flowchart|graph)\b/.test(line.trim())); lines.splice(header, 0, comment); }
-      source.value = lines.join("\n"); saveDraft(); updateLines(); fitMode = true; void draw();
+      source.value = updateArchmapMetadata(source.value,{style}); saveDraft(); updateLines(); fitMode = true; void draw();
     } catch { announce("補助設定のJSONを修正してください。"); return; }
     announce(style === "icons" ? "アイコン表示に切り替えました。" : "カード表示に切り替えました。");
   });

@@ -313,7 +313,7 @@ ER・ユースケースとも方向はLR / RL / TB / TD / BTです。任意のMe
 
 ## 任意の表示設定
 
-1文書に1行の `%% archmap: JSON` を書けます。改行を含む複数行のJSONは未対応です。設定を省略しても標準Mermaidだけで描画できます。
+1文書に1ブロックの `%% archmap: JSON` を書けます。1行形式に加え、各行を `%%` で始める複数行JSONに対応します。設定を省略しても標準Mermaidだけで描画できます。
 
 ```mermaid
 %% archmap: {"view":"system","style":"icons","nodes":{"api":{"icon":"gcp/cloud_run","description":"注文を受け付ける","color":"blue","at":[1,1]},"db":{"icon":"database","color":"green","at":[2,1]}}}
@@ -557,3 +557,27 @@ overview の `nodes.<ID>.fontFamily` に `sans`（ゴシック）、`serif`（�
 例：`"nodes":{"Guard":{"attention":"focus","fontFamily":"serif","callout":"検知から遮断まで"}}`。
 未指定は通常書体。context に切り替えると書体変更も無効になります。サイズ・色の強調は従来どおり併用できます。字幅の違いを見込んで折り返し、高さを確保します。
 フォントファイルは外部取得せず端末内のフォントへフォールバックするため、端末間で厳密に同一の字形は保証しません。SVG / PNGへ指定を反映します。
+
+### 複数行の表示設定とタイトル
+
+```mermaid
+---
+title: 監視と通信遮断のシステム概要
+---
+%% archmap: {
+%%   "view": "overview",
+%%   "nodes": {
+%%     "Guard": {
+%%       "attention": "focus",
+%%       "fontFamily": "serif",
+%%       "callout": "検知から遮断まで"
+%%     }
+%%   }
+%% }
+flowchart LR
+  PC[利用者PC] --> Guard[監視システム]
+```
+
+開始行は `%% archmap: {`、続くJSONの全行に `%%` を付け、`%% }` で閉じます。標準JSONなので末尾カンマやJSON内コメントは使えません。1文書に設定ブロックは1つ。従来の1行形式も有効です。プレイグラウンドのカード／アイコン切り替えでも複数行形式を保持します。
+
+タイトルは標準MermaidのYAML frontmatter（先頭の `---`）に `title:` で指定します。archmapブロックをfrontmatterの前に置いても解析できます。図の上部に表示し、長いタイトルは折り返して領域を確保します。複数行タイトルはYAMLの `title: |` が使用できます。`archmap.title` は設定項目ではありません。

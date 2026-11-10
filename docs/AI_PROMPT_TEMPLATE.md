@@ -11,7 +11,7 @@
 2. flowchart / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling を使用する。
 3. 関係・接続は標準Mermaidで記述する。架空の命令を作らない。
 4. レイヤー・画面遷移・アクティビティ・業務フロー（bpmn）・システム概要（overview）の表示は %% archmap: の view で選ぶ。
-5. 補助設定は1文書1行の正しいJSON。不要な場合は省略する。
+5. 補助設定は1文書1ブロックの正しいJSON。長い場合は %% archmap: { で開始し、続く各行にも %% を付ける複数行形式を使う。不要な場合は省略する。
 6. Mermaidのsubgraph（入れ子・個別direction可）、sequenceのNote/box/alt/opt/loop/par/critical/break、stateのchoice/fork/join・同時状態・noteを用途に応じて使う。
 7. アイコンは既知の組み込みキーだけを使用し、不明なら省略する。
 8. モーダル、画面内状態変更、遷移しない操作は区別する。遷移はMermaidの矢印で書く。
