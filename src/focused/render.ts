@@ -1,3 +1,4 @@
+import {timelineItems} from './temporal.js';
 import {renderGantt} from './gantt.js';
 import {focusModel,attentionStyle,focusTypography} from './attention.js';
 import {OUTPUT_THEME, palette} from './theme.js';
@@ -26,7 +27,9 @@ function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: D
   const bodyFill=paint.fill??OUTPUT_THEME.surface, titleColor=paint.color??OUTPUT_THEME.title, detailColor=paint.color??OUTPUT_THEME.detail;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
   if(kind==='timeline') {
-    return `<g class="archmap-node archmap-period" data-node="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${bodyFill}" stroke="${colors.border}"/><path d="M ${x+208} ${y+16} V ${y+h-16}" stroke="${colors.ink}" stroke-width="3"/><circle cx="${x+208}" cy="${y+32}" r="6" fill="${colors.ink}"/>${textLines(wrapText(node.label,160,22),x+24,y+38,22,30,titleColor,700)}${textLines(wrapText(node.description??'',364,18),x+232,y+38,18,27,detailColor)}</g>`;
+    let offset=0;
+    const items=timelineItems(node).map(lines=>{const row=`<g class="archmap-timeline-item">${textLines(['•'],x+224,y+38+offset,18,27,detailColor)}${textLines(lines,x+244,y+38+offset,18,27,detailColor)}</g>`;offset+=lines.length*27+12;return row;}).join('');
+    return `<g class="archmap-node archmap-period" data-node="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${bodyFill}" stroke="${colors.border}"/>${textLines(wrapText(node.label,160,22),x+24,y+38,22,30,titleColor,700)}${items}</g>`;
   }
   if(kind==='overview') {
     const c=overviewContent(node),status={new:['新規','#087f72','#e5f6f1'],changed:['変更','#bd4d13','#fff2e6'],impact:['影響あり','#8a45aa','#f6ecfc'],unchanged:['変更なし','#64748b','#f1f5f9']}[node.emphasis??'unchanged'];

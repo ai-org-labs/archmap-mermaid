@@ -12,7 +12,7 @@ export interface DiagramNode {
   callout?: string;
   calloutSize?: number;
   gantt?: {start:number; end:number; milestone:boolean; active:boolean; done:boolean; critical:boolean; vertical:boolean};
-  temporal?: {order:number; lane:string; category:string};
+  temporal?: {events?:string[]; order:number; lane:string; category:string};
   paint?: DiagramPaint;
   participantType?: string;
   links?: Array<{label:string;href:string}>;

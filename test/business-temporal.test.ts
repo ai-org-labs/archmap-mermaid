@@ -43,3 +43,8 @@ it.each(['LR','RL','TB','BT'])('overview reserves long callouts with nested grou
 it('overview projects Mermaid shapes to measured cards without mutating the input model',async()=>{
  const m=await parseDiagram('%% archmap: {"view":"overview","nodes":{"A":{"callout":"確認ポイント"}}}\nflowchart LR\nA@{ shape: fork, label: "Parallel" } --> B[(Data)]');expect(m.diagnostics).toEqual([]);const before=JSON.stringify(m),r=renderDiagram(m);expect(JSON.stringify(m)).toBe(before);expect(r.layout.nodes.every(n=>n.width===320)).toBe(true);expect(r.svg).toContain('確認ポイント');
 });
+
+it('renders timeline events as separate bullets, preserving multiline event boundaries',async()=>{
+ const m=await parseDiagram('timeline\n11月 : 設計<br>完了 : 開発開始 : レビュー\n12月 : 公開');expect(m.diagnostics).toEqual([]);expect(m.nodes[0].temporal?.events).toEqual(['設計\n完了','開発開始','レビュー']);const r=renderDiagram(m);
+ const doc=new DOMParser().parseFromString(r.svg,'image/svg+xml');const periods=doc.querySelectorAll('.archmap-period');expect(periods[0].querySelectorAll('.archmap-timeline-item')).toHaveLength(3);expect(periods[1].querySelectorAll('.archmap-timeline-item')).toHaveLength(1);expect(periods[0].querySelectorAll('circle,path')).toHaveLength(0);expect(periods[0].querySelector('.archmap-timeline-item')!.textContent).toContain('設計完了');expect(r.layout.nodes[0].height).toBeGreaterThan(r.layout.nodes[1].height);
+});

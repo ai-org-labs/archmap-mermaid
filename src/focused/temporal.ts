@@ -33,6 +33,11 @@ export function readEventModel(ast:EventModel):Partial<DiagramModel> {
   return {kind:'eventmodeling',direction:'LR',title:ast.title??'',nodes,edges,groups};
 }
 
+/** Keep event boundaries distinct from line breaks within a single event. */
+export function timelineItems(n:DiagramNode):string[][] {
+ return (n.temporal?.events??(n.description?[n.description]:[])).map(event=>wrapText(event,346,18));
+}
+
 /** Timeline is ordinal, not a proportional date axis. Event frames keep source order. */
 export function temporalLayout(model:DiagramModel):DiagramLayout {
   const top=model.title?92:40;
@@ -40,7 +45,7 @@ export function temporalLayout(model:DiagramModel):DiagramLayout {
     let y=top,section:string|undefined;const nodes:DiagramLayoutNode[]=[],groups:DiagramLayout['groups']=[];
     for(const n of model.nodes){
       if(n.temporal?.lane!==section){section=n.temporal?.lane;y+=section?(nodes.length?62:38):0;}
-      const height=Math.max(92,48+Math.max(wrapText(n.label,160,22).length*30,n.description?wrapText(n.description,364,18).length*27:0));
+      const height=Math.max(92,48+Math.max(wrapText(n.label,160,22).length*30,timelineItems(n).reduce((sum,lines)=>sum+lines.length*27+12,0)-12));
       nodes.push({node:n,x:64,y,width:620,height});
       if(section && (nodes.length===1||nodes[nodes.length-2]!.node.temporal?.lane!==section))groups.push({group:model.groups.find(g=>g.id===n.group)!,x:40,y:y-38,width:668,height:height+62});
       else if(section)groups[groups.length-1]!.height=y+height+24-groups[groups.length-1]!.y;

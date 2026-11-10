@@ -85,7 +85,7 @@ async function parse(source: string): Promise<DiagramModel> {
     } else if(diagram.type==='timeline') {
       model.kind='timeline'; model.direction='TD';
       const db=diagram.db as unknown as {getTasks():Array<{id:number;section:string;task:string;events:string[]}>};
-      model.nodes=db.getTasks().map((t,i)=>({...node('period-'+t.id,text(t.task).trim()),description:t.events.map(e=>text(e).trim()).join('\n'),temporal:{order:i,lane:text(t.section||''),category:'period'}}));
+      model.nodes=db.getTasks().map((t,i)=>({...node('period-'+t.id,text(t.task).trim()),description:t.events.map(e=>text(e).trim()).join('\n'),temporal:{events:t.events.map(e=>text(e).trim()),order:i,lane:text(t.section||''),category:'period'}}));
       let section='',sectionId='';
       for(const n of model.nodes){if(n.temporal!.lane!==section){section=n.temporal!.lane;sectionId='section-'+model.groups.length;if(section)model.groups.push({id:sectionId,label:section,color:'gray',line:0});}if(section)n.group=sectionId;}
 
