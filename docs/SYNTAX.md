@@ -42,7 +42,7 @@ ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自
 | --- | --- | --- |
 | ER図 | `erDiagram` | 不要 |
 | ユースケース図 | `usecase-beta` | 不要 |
-| ビジネス概略・変更影響 | `flowchart LR` | `overview` |
+| システム概要・変更影響 | `flowchart LR` | `overview` |
 | 施策・出来事の年表 | `timeline` | 宣言から判定 |
 | 情報の変化 | `eventmodeling` | 宣言から判定 |
 | システム構成図 | `flowchart LR` | `system`（既定） |
@@ -442,7 +442,7 @@ b2 --> c1
 例：[親に子3つ・孫グリッド・階層横断接続](diagrams/group-grid/nested-three-children.mmd)、[6階層の方向切替](diagrams/group-grid/nested-directions.mmd)。
 
 
-## ビジネス概略図（overview）
+## システム概要図（overview）
 
 標準 `flowchart` に `%% archmap: {"view":"overview"}` を付ける。経営・業務向けに名称を24px、対象に付随する吹き出しを22pxで描画する。接続・ノードを自動削除しない。概略の要素選定は著者が行い、技術詳細は別図へ分ける。
 

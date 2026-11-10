@@ -10,7 +10,7 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## 機能
 
-システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケース・業務フロー（BPMN風）に、ビジネス概略図・タイムライン・イベントモデリングを加えた11種類。
+システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケース・業務フロー（BPMN風）に、システム概要図・タイムライン・イベントモデリングを加えた11種類。
 入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling の対応サブセットです。
 独自DSLは採用せず、必要な表示設定だけ `%% archmap: JSON` コメントに記述します。
 互換範囲は [docs/SYNTAX.md](docs/SYNTAX.md) に列挙しています。
