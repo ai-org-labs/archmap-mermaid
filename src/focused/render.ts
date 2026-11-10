@@ -1,4 +1,5 @@
-import {timelineItems} from './temporal.js';
+import {roundedOrthogonalPath} from './orthogonal-path.js';
+import {timelineItems,eventCardContent} from './temporal.js';
 import {renderGantt} from './gantt.js';
 import {focusModel,attentionStyle,focusTypography} from './attention.js';
 import {OUTPUT_THEME, palette} from './theme.js';
@@ -30,6 +31,10 @@ function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: D
     let offset=0;
     const items=timelineItems(node).map(lines=>{const row=`<g class="archmap-timeline-item">${textLines(['•'],x+224,y+38+offset,18,27,detailColor)}${textLines(lines,x+244,y+38+offset,18,27,detailColor)}</g>`;offset+=lines.length*27+12;return row;}).join('');
     return `<g class="archmap-node archmap-period" data-node="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${bodyFill}" stroke="${colors.border}"/>${textLines(wrapText(node.label,160,22),x+24,y+38,22,30,titleColor,700)}${items}</g>`;
+  }
+  if(kind==='eventmodeling') {
+    const c=eventCardContent(node),titleY=y+38+c.namespace.length*17;
+    return `<g class="archmap-node archmap-event-frame" data-node="${escapeXml(node.id)}"><title>${escapeXml(node.label)}</title><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="${bodyFill}" stroke="${colors.border}"/>${textLines(c.namespace,x+20,y+28,12,17,colors.ink,600)}${textLines(c.title,x+20,titleY,18,24,titleColor,600)}${textLines(c.detail,x+20,titleY+c.title.length*24+10,12,18,detailColor)}</g>`;
   }
   if(kind==='overview') {
     const c=overviewContent(node),status={new:['新規','#087f72','#e5f6f1'],changed:['変更','#bd4d13','#fff2e6'],impact:['影響あり','#8a45aa','#f6ecfc'],unchanged:['変更なし','#64748b','#f1f5f9']}[node.emphasis??'unchanged'];
@@ -176,7 +181,7 @@ export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions
   }).join('');
   const notes=(layout.notes??[]).map(n=>`<g class="archmap-sequence-note"><rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="6" fill="#fff7df" stroke="#d9bd7c"/>${textLines(wrapText(n.label,n.width-32,12),n.x+16,n.y+21,12,17,'#685626')}</g>`).join('');
   const destructions=(layout.destructions??[]).map(d=>`<path class="archmap-destruction" d="M ${d.x-8} ${d.y-8} l 16 16 M ${d.x+8} ${d.y-8} l -16 16" stroke="#64748b" stroke-width="2"/>`).join('');
-  const connections = layout.edges.filter(e=>!e.edge.invisible).map(({ edge, points }) => `<path class="archmap-edge" d="${points.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="${edge.stroke&&safePaint(edge.stroke,true)?edge.stroke:OUTPUT_THEME.edge}" stroke-width="${edge.strokeWidth??(edge.thick?3.2:1.8)}" stroke-linejoin="round" stroke-linecap="round"${edge.style === 'dashed' ? ' stroke-dasharray="6 5"' : ''}${edge.targetMarker ? ` marker-end="url(#archmap-${escapeXml(edge.targetMarker)})"` : edge.arrow === "none" || (edge.strokeWidth!==undefined||edge.stroke!==undefined) ? "" : ` marker-end="url(#${edge.arrow === "filled" ? "archmap-arrow-filled" : "archmap-arrow"})"`}${edge.sourceMarker ? ` marker-start="url(#archmap-${escapeXml(edge.sourceMarker)})"` : edge.bidirectional && edge.strokeWidth===undefined && edge.stroke===undefined ? ` marker-start="url(#${edge.arrow === 'filled' ? 'archmap-arrow-filled' : 'archmap-arrow-start'})"` : ''}/>`).join('');
+  const connections = layout.edges.filter(e=>!e.edge.invisible).map(({ edge, points }) => `<path class="archmap-edge" d="${model.kind==='eventmodeling'?roundedOrthogonalPath(points):points.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="${edge.stroke&&safePaint(edge.stroke,true)?edge.stroke:OUTPUT_THEME.edge}" stroke-width="${edge.strokeWidth??(edge.thick?3.2:1.8)}" stroke-linejoin="round" stroke-linecap="round"${edge.style === 'dashed' ? ' stroke-dasharray="6 5"' : ''}${edge.targetMarker ? ` marker-end="url(#archmap-${escapeXml(edge.targetMarker)})"` : edge.arrow === "none" || (edge.strokeWidth!==undefined||edge.stroke!==undefined) ? "" : ` marker-end="url(#${edge.arrow === "filled" ? "archmap-arrow-filled" : "archmap-arrow"})"`}${edge.sourceMarker ? ` marker-start="url(#archmap-${escapeXml(edge.sourceMarker)})"` : edge.bidirectional && edge.strokeWidth===undefined && edge.stroke===undefined ? ` marker-start="url(#${edge.arrow === 'filled' ? 'archmap-arrow-filled' : 'archmap-arrow-start'})"` : ''}/>`).join('');
   const centralConnections=layout.edges.flatMap(({edge,points})=>[...(edge.central==='source'||edge.central==='both'?[points[0]!]:[]),...(edge.central==='target'||edge.central==='both'?[points[points.length-1]!]:[])]).map(p=>`<circle class="archmap-central-connection" cx="${p.x}" cy="${p.y}" r="4.5" fill="#fff" stroke="${OUTPUT_THEME.edge}" stroke-width="1.6"/>`).join('');
   const labels = layout.edges.map(({ edge, points, labelBox }) => {
     if (!labelBox || edge.invisible) return '';

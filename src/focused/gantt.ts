@@ -1,3 +1,4 @@
+import {roundedOrthogonalPath} from './orthogonal-path.js';
 import dayjs from 'dayjs';
 import {timeFormat} from 'd3-time-format';
 import {timeTicks,timeMillisecond,timeSecond,timeMinute,timeHour,timeDay,timeWeek,timeMonth,timeYear,timeMonday,timeTuesday,timeWednesday,timeThursday,timeFriday,timeSaturday,timeSunday} from 'd3-time';
@@ -95,7 +96,7 @@ function tableColumns(model:DiagramModel){let x=340;return (model.gantt!.columns
 function frame(model:DiagramModel){
  const times=model.nodes.flatMap(n=>[n.gantt!.start,n.gantt!.end]);
  const min=Math.min(...times),max=Math.max(...times),span=Math.max(max-min,60000),pad=span*.035;
- const left=356+(model.gantt!.columns??[]).reduce((sum,c)=>sum+c.width,0),width=1060,top=38+wrapText(model.title||'Gantt chart',left+width-64,26).length*34+Math.max(0,...(model.gantt!.columns??[]).map(c=>(wrapText(c.label,c.width-24,13).length-1)*19));
+ const left=356+(model.gantt!.columns??[]).reduce((sum,c)=>sum+c.width,0),width=1060,top=58+wrapText(model.title||'Gantt chart',left+width-64,26).length*34+Math.max(0,...(model.gantt!.columns??[]).map(c=>(wrapText(c.label,c.width-24,13).length-1)*19));
  return {min:min-pad,max:Math.max(max,min+60000)+pad,span:Math.max(max,min+60000)-min+2*pad,left,width,top};
 }
 function axisScale(model:DiagramModel){const f=frame(model);return (time:number)=>f.left+(time-f.min)/f.span*f.width;}
@@ -139,17 +140,23 @@ export function renderGantt(model:DiagramModel):DiagramRenderResult{
  const bottom=layout.height-80,axisY=f.top+26;
  const fmt=timeFormat(model.gantt!.axisFormat||(f.span<DAY*2?'%m/%d %H:%M':f.span>DAY*365?'%Y/%m':'%m/%d'));
  let body=lines(model.title||'Gantt chart',32,44,layout.width-64,26,'#25384b',700);
+ const startDate=new Date(Math.min(...model.nodes.map(n=>n.gantt!.start))),endDate=new Date(Math.max(...model.nodes.map(n=>n.gantt!.end))),calendar=timeFormat('%Y/%m/%d');
+ const sameDay=calendar(startDate)===calendar(endDate);
+ body+=label(sameDay?calendar(startDate):`${calendar(startDate)} — ${calendar(endDate)}`,32,44+wrapText(model.title||'Gantt chart',layout.width-64,26).length*32,12,'#708295');
+ body+=`<rect x="24" y="${f.top+4}" width="${layout.width-48}" height="36" rx="6" fill="#f3f6f9"/>`;
+ for(const n of layout.nodes){const rowHeight=Math.max(68,wrapText(n.node.label,290,16).length*22+52,...tableColumns(model).map(c=>wrapText(cellText(model,n.node,c.key),c.width-24,14).length*20+32));body+=`<path class="archmap-gantt-row-guide" d="M 32 ${n.y+rowHeight-13} H ${f.left+f.width}" stroke="#f0f3f6"/>`;}
+
  body+=label('タスク / 期間',32,axisY,13,'#586c80',600);
  for(const c of tableColumns(model)){const h=wrapText(c.label,c.width-24,13).length;body+=lines(c.label,c.x+12,axisY-(h-1)*19,c.width-24,13,'#586c80',600)+`<path d="M ${c.x} ${f.top+34} V ${bottom}" stroke="#edf1f5"/>`;}
  const shade=model.gantt!.excluded.map(([a,b])=>`<rect x="${scale(a)}" y="${f.top+40}" width="${scale(b)-scale(a)}" height="${bottom-f.top-40}" fill="#64748b" opacity=".07"/>`).join('');body+=shade;
  let previous=-Infinity;
  for(const tick of ticks(model)){const px=scale(+tick),value=fmt(tick),width=Math.max(70,value.length*8);if(px-previous<width+14)continue;previous=px;body+=`<path d="M ${px} ${f.top+34} V ${bottom}" stroke="${escapeXml(theme.gridColor)}"/>`+label(value,px-width/2,axisY,13,'#586c80');}
- for(const g of layout.groups)body+=`<rect x="${g.x}" y="${g.y}" width="${g.width}" height="${g.height}" rx="5" fill="#edf3f7"/>`+lines(g.group.label,36,g.y+25,g.width-24,16,'#334e65',600);
- for(const e of layout.edges){const p=e.points,tip=p[p.length-1],prev=p[p.length-2],sign=tip.y>prev.y?1:-1;body+=`<path class="archmap-edge archmap-dependency" data-from="${escapeXml(e.edge.from)}" data-to="${escapeXml(e.edge.to)}" d="${p.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="#60758a" stroke-width="1.5" stroke-linejoin="round"${e.edge.label==='until'?' stroke-dasharray="4 3"':''}/><path d="M ${tip.x-4} ${tip.y-sign*5} L ${tip.x} ${tip.y} L ${tip.x+4} ${tip.y-sign*5}" fill="none" stroke="#60758a" stroke-width="1.5"/>`;}
+ for(const g of layout.groups)body+=`<rect x="${g.x}" y="${g.y}" width="${g.width}" height="${g.height}" rx="4" fill="#e9f0f5"/>`+lines(g.group.label,36,g.y+25,g.width-24,16,'#334e65',600);
+ for(const e of layout.edges){const p=e.points,tip=p[p.length-1],prev=p[p.length-2],sign=tip.y>prev.y?1:-1;body+=`<path class="archmap-edge archmap-dependency" data-from="${escapeXml(e.edge.from)}" data-to="${escapeXml(e.edge.to)}" d="${roundedOrthogonalPath(p)}" fill="none" stroke="#8193a3" stroke-width="1.4" stroke-linejoin="round"${e.edge.label==='until'?' stroke-dasharray="4 3"':''}/><path d="M ${tip.x-4} ${tip.y-sign*5} L ${tip.x} ${tip.y} L ${tip.x+4} ${tip.y-sign*5}" fill="none" stroke="#8193a3" stroke-width="1.4"/>`;}
  const date=timeFormat(datePattern(model));
  for(const n of layout.nodes){const t=n.node.gantt!,key=t.critical?'crit':t.done?'doneTask':t.active?'activeTask':'task',fill=(n.node.paint?.fill&&safePaint(n.node.paint.fill,true)?n.node.paint.fill:theme[key+'BkgColor']),stroke=theme[key+'BorderColor'];
   body+=`<g class="archmap-node archmap-gantt-task" data-node="${escapeXml(n.node.id)}"><title>${escapeXml(n.node.label)}: ${date(new Date(t.start))} – ${date(new Date(t.end))}</title>`;
-  const texts=wrapText(n.node.label,290,16);body+=lines(n.node.label,36,n.y+18,290,16,theme.taskTextColor,600)+label(`${date(new Date(t.start))} → ${date(new Date(t.end))}`,36,n.y+18+texts.length*22,12,'#586c80');
+  const texts=wrapText(n.node.label,290,16);body+=lines(n.node.label,36,n.y+18,290,16,theme.taskTextColor,600)+label(`${(sameDay?timeFormat('%H:%M'):date)(new Date(t.start))} → ${(sameDay?timeFormat('%H:%M'):date)(new Date(t.end))}`,36,n.y+18+texts.length*22,12,'#586c80');
   for(const c of tableColumns(model))body+=`<g class="archmap-gantt-cell" data-column="${escapeXml(c.key)}">${lines(cellText(model,n.node,c.key),c.x+12,n.y+18,c.width-24,14)}</g>`;
   if(t.vertical)body+=`<path d="M ${scale(t.start)} ${f.top+40} V ${bottom}" stroke="${escapeXml(fill)}" stroke-width="2" stroke-dasharray="5 4"/>`;
   else if(t.milestone)body+=`<path class="archmap-gantt-milestone" d="M ${n.x+9} ${n.y+5} l 9 9 -9 9 -9 -9 Z" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"/>`;

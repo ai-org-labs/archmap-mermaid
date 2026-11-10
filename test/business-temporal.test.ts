@@ -48,3 +48,14 @@ it('renders timeline events as separate bullets, preserving multiline event boun
  const m=await parseDiagram('timeline\n11月 : 設計<br>完了 : 開発開始 : レビュー\n12月 : 公開');expect(m.diagnostics).toEqual([]);expect(m.nodes[0].temporal?.events).toEqual(['設計\n完了','開発開始','レビュー']);const r=renderDiagram(m);
  const doc=new DOMParser().parseFromString(r.svg,'image/svg+xml');const periods=doc.querySelectorAll('.archmap-period');expect(periods[0].querySelectorAll('.archmap-timeline-item')).toHaveLength(3);expect(periods[1].querySelectorAll('.archmap-timeline-item')).toHaveLength(1);expect(periods[0].querySelectorAll('circle,path')).toHaveLength(0);expect(periods[0].querySelector('.archmap-timeline-item')!.textContent).toContain('設計完了');expect(r.layout.nodes[0].height).toBeGreaterThan(r.layout.nodes[1].height);
 });
+
+it('event routes prefer straight lines on a clear lane and keep fan-in/backward paths away from cards',async()=>{
+ const m=await parseDiagram('eventmodeling\ntf 01 evt A\nrf 02 evt B ->> 01\ntf 03 cmd C ->> 01\ntf 04 ui D ->> 02 ->> 03\ntf 05 evt E ->> 01 ->> 04\ntf 06 rmo F ->> 02 ->> 05');expect(m.diagnostics).toEqual([]);
+ m.edges.push({from:'06',to:'01',label:'',style:'solid',arrow:'open',bidirectional:false,line:0});
+ const before=JSON.stringify(m),r=renderDiagram(m);expect(JSON.stringify(m)).toBe(before);expect(r.layout.edges[0].points).toHaveLength(2);expect(new Set(r.layout.nodes.map(n=>n.height)).size).toBe(1);
+ for(const e of r.layout.edges)for(let i=1;i<e.points.length;i++)for(const n of r.layout.nodes){if([e.edge.from,e.edge.to].includes(n.node.id))continue;expect(segmentIntersectsBox(e.points[i-1],e.points[i],n)).toBe(false);}
+ expect(r.svg).toContain('archmap-event-frame');expect(r.svg).toContain(' Q ');
+});
+it('event self-references route outside the card',async()=>{
+ const m=await parseDiagram('eventmodeling\ntf 01 evt A ->> 01');expect(m.diagnostics).toEqual([]);const r=renderDiagram(m),n=r.layout.nodes[0],points=r.layout.edges[0].points;expect(points[1].x).toBeGreaterThan(n.x+n.width);expect(points[2].x).toBeGreaterThan(n.x+n.width);
+});
