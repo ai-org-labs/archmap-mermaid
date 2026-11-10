@@ -400,6 +400,7 @@ function placeCells(model: DiagramModel): Map<string, Cell> {
   return cells;
 }
 function port(node: DiagramLayoutNode, side: Side, offset: number): DiagramPoint {
+  if(node.bodyHeight!==undefined)node={...node,height:node.bodyHeight};
   if (node.junction) {
     const bar = node.junction;
     return side === 'top' || side === 'bottom'
@@ -709,6 +710,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     node.junction = (model.direction === 'TD' || model.direction === 'BT') ? { x: cx - 60, y: cy - 5, width: 120, height: 10 } : { x: cx - 5, y: cy - 60, width: 10, height: 120 };
     node.junctionLabel = (model.direction === 'TD' || model.direction === 'BT') ? { x: cx + 84, y: cy - text.height / 2, width: text.width, height: text.height } : { x: cx - text.width / 2, y: cy + 84, width: text.width, height: text.height };
   }
+  if(model.kind==='overview')for(const n of nodes)n.bodyHeight=overviewContent(n.node).body;
   const junctionLabels = nodes.flatMap(node => node.junctionLabel ? [node.junctionLabel] : []);
   const groups: DiagramLayout['groups'] = [];
   const groupLabels: DiagramBox[] = [];
@@ -777,6 +779,8 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     if (a.screen && b.screen && a.y === b.y && b.x < a.x && !edge.bidirectional && model.edges.some(other => other.from === edge.to && other.to === edge.from)) {
       sa = 'right'; sb = 'top';
     }
+    if(a.bodyHeight!==undefined&&a.bodyHeight<a.height&&sa==='bottom')sa=b.x<a.x?'left':'right';
+    if(b.bodyHeight!==undefined&&b.bodyHeight<b.height&&sb==='bottom')sb=a.x<b.x?'left':'right';
     return [{ edge, a, b, sa, sb, start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }];
   });
   type PortRequest = { spec: typeof specs[number]; endpoint: 'start' | 'end'; node: DiagramLayoutNode; side: Side; delta: number };
@@ -799,7 +803,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   for (const requests of portGroups.values()) {
     requests.sort((a, b) => a.delta - b.delta || compareKey(edgeKey(a.spec), edgeKey(b.spec)));
     const { node, side } = requests[0]!;
-    const limit = node.junction ? Math.max(0, (side === 'left' || side === 'right' ? node.junction.height : node.junction.width) / 2 - 8) : node.screen && (side === 'left' || side === 'right') ? Math.max(0, (node.screen.headerHeight - 27) / 2 - 12) : node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+    const limit = node.junction ? Math.max(0, (side === 'left' || side === 'right' ? node.junction.height : node.junction.width) / 2 - 8) : node.screen && (side === 'left' || side === 'right') ? Math.max(0, (node.screen.headerHeight - 27) / 2 - 12) : node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.bodyHeight??node.height : node.width) / 2 - 24;
     const pivot = requests.reduce((best, item, i) => Math.abs(item.delta) < Math.abs(requests[best]!.delta) ? i : best, 0);
     // Leave room for a neighboring straight edge's label as well as its stroke.
     // A 16–24px fan can otherwise pass through a label centered on that edge.
@@ -1030,11 +1034,12 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
         usedLabels = edges.flatMap(e => e.labelBox ? [e.labelBox] : []);
         const fixedEdges = edges, fixedLabels = usedLabels;
         const freePort = (node: DiagramLayoutNode, side: Side) => {
+          if(side==='bottom'&&node.bodyHeight!==undefined&&node.bodyHeight<node.height)return undefined;
           const occupied = fixedEdges.flatMap(e => [
             ...(e.edge.from === node.node.id ? [e.points[0]!] : []),
             ...(e.edge.to === node.node.id ? [e.points[e.points.length - 1]!] : []),
           ]);
-          const limit = node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.height : node.width) / 2 - 24;
+          const limit = node.iconMode ? 16 : (side === 'left' || side === 'right' ? node.bodyHeight??node.height : node.width) / 2 - 24;
           for (const offset of [0, -16, 16, -32, 32, -48, 48]) {
             if (Math.abs(offset) > limit) continue;
             const p = port(node, side, offset);

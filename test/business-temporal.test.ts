@@ -59,3 +59,10 @@ it('event routes prefer straight lines on a clear lane and keep fan-in/backward 
 it('event self-references route outside the card',async()=>{
  const m=await parseDiagram('eventmodeling\ntf 01 evt A ->> 01');expect(m.diagnostics).toEqual([]);const r=renderDiagram(m),n=r.layout.nodes[0],points=r.layout.edges[0].points;expect(points[1].x).toBeGreaterThan(n.x+n.width);expect(points[2].x).toBeGreaterThan(n.x+n.width);
 });
+
+it.each(['LR','RL','TB','BT'])('overview connects to bodies, not callouts in %s',async direction=>{
+ const source='%% archmap: '+JSON.stringify({view:'overview',nodes:{A:{callout:'補足説明を長く書く。'.repeat(12)},B:{callout:'注釈'}}})+'\nflowchart '+direction+'\nA[送信元] --> B[受信先]\nC[処理] --> A';
+ const model=await parseDiagram(source);expect(model.diagnostics).toEqual([]);const r=renderDiagram(model);
+ for(const e of r.layout.edges)for(const [id,point] of [[e.edge.from,e.points[0]],[e.edge.to,e.points[e.points.length-1]]] as const){const n=r.layout.nodes.find(n=>n.node.id===id)!;expect(point.y).toBeLessThanOrEqual(n.y+n.bodyHeight!+0.01);}
+ for(const e of r.layout.edges)for(const n of r.layout.nodes.filter(n=>n.node.callout))for(let i=1;i<e.points.length;i++)expect(segmentIntersectsBox(e.points[i-1],e.points[i],{x:n.x,y:n.y+n.bodyHeight!+20,width:n.width,height:n.height-n.bodyHeight!-20})).toBe(false);
+});

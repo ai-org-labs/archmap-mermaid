@@ -74,7 +74,7 @@ export interface DiagramScreenContent {
   height: number;
   actions: Array<{ edge?: DiagramEdge; line: number; kind?: string; detail?: string[]; label: string; lines: string[]; top: number; height: number }>;
 }
-export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean; junction?: DiagramBox; junctionLabel?: DiagramBox; screen?: DiagramScreenContent }
+export interface DiagramLayoutNode extends DiagramBox { bodyHeight?: number; node: DiagramNode; iconMode?: boolean; junction?: DiagramBox; junctionLabel?: DiagramBox; screen?: DiagramScreenContent }
 export interface DiagramLayoutEdge { edge: DiagramEdge; points: DiagramPoint[]; labelBox?: DiagramBox }
 export interface DiagramLayout {
   edgeCallouts?: Array<DiagramBox & {text:string[];fontSize:number;anchor:DiagramPoint;edgeIndex:number}>;
