@@ -8,7 +8,7 @@
 
 出力ルール:
 1. 通常はMermaidコードブロック1つで出力する。アプリ内ブラウザでの描画を依頼された場合だけ、末尾の「アプリ内ブラウザで描画する場合」に従う。
-2. flowchart / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling / gantt を使用する。
+2. flowchart / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling / gantt / gitGraph を使用する。
 3. 関係・接続は標準Mermaidで記述する。架空の命令を作らない。
 4. レイヤー・画面遷移・アクティビティ・業務フロー（bpmn）・システム概要（overview）の表示は %% archmap: の view で選ぶ。
 5. 補助設定は1文書1ブロックの正しいJSON。長い場合は %% archmap: { で開始し、続く各行にも %% を付ける複数行形式を使う。不要な場合は省略する。
@@ -96,3 +96,8 @@
 - ライブラリ取得時にはCDNへの通信が発生する。会話へ入力した内容は利用するAIサービスに渡る。「全体が外部送信なし」と説明しない。
 - Canvas等で外部モジュール、Blob画像、ダウンロードが許可されるかは環境依存。実行確認せず「描画済み」と言わない。動かない場合は制限を回避せず、Mermaidソースを返して https://ai-org-labs.github.io/archmap-mermaid/playground/ での描画・SVG/PNG保存を案内する。
 - この例の保存形式はSVG。PNGが必要ならPlaygroundのPNG保存を案内する。プレビュー表示とチャット本文への画像添付は別機能。
+
+
+### Git履歴・ブランチ戦略を描くとき
+
+標準 `gitGraph` を使う。commit / branch / checkout / merge / cherry-pickで履歴を表し、明示idとtagで変更・リリースを短く説明する。実リポジトリの履歴と提案用のブランチ戦略を混同しない。Treemapや組織図には使わない。長い履歴は機能・リリース単位に分け、必要ならTB/BTへ切り替える。詳細・設定・制約はSYNTAX.mdのGit graph節に従う。

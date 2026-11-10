@@ -30,6 +30,7 @@ const icons: Record<string, string> = {
   sequence: '<path d="M4 2v16M16 2v16M4 6h12m-3-3 3 3-3 3M16 14H4m3-3-3 3 3 3"/>',
   screens: '<rect x="2" y="3" width="6" height="11" rx="1"/><rect x="12" y="6" width="6" height="11" rx="1"/><path d="M8 9h4M4 11h2m8 3h2"/>',
   bpmn: '<rect x="2" y="2" width="20" height="18" rx="1"/><path d="M2 11h20M7 2v18M10 6h7M12 15h7"/>',
+  gitgraph: '<circle cx="5" cy="4" r="2"/><circle cx="15" cy="9" r="2"/><circle cx="5" cy="16" r="2"/><path d="M5 6v8m0-7c0 4 10-4 10 0m0 4c0 5-10-1-10 3"/>',
   gantt: '<path d="M3 2v16h15M6 5h6M9 9h8M12 13h6"/>',
   activity: '<circle cx="4" cy="4" r="2"/><path d="M4 6v4h6m0-4 4 4-4 4-4-4 4-4Zm0 8v3h5"/><circle cx="17" cy="17" r="2"/>',
 };

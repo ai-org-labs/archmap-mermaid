@@ -19,7 +19,7 @@ ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自
 | Mindmap／マインドマップ | × | — |
 | Block／ブロック図 | × | — |
 | Requirement／要求図 | × | — |
-| GitGraph | × | — |
+| GitGraph | ○ | commit・branch・checkout/switch・merge・cherry-pick、タグ・種類・ブランチ順、LR/TB/BT。詳細はGit graph節 |
 | Gantt／ガントチャート | ○ | section・日付/期間・休日除外・after/until・進捗・マイルストーン・配色。詳細はガント節 |
 | Timeline／タイムライン | ○ | 期間・複数イベント・section。記述順、等間隔の年表 |
 | Event Modeling | ○（基本構文） | frame / reset / 明示参照 / data。独立note・GWT・entity定義は未対応 |
@@ -44,6 +44,7 @@ ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自
 | ユースケース図 | `usecase-beta` | 不要 |
 | システム概要・変更影響 | `flowchart LR` | `overview` |
 | 施策・出来事の年表 | `timeline` | 宣言から判定 |
+| コミット・ブランチ・マージ | `gitGraph` | 宣言から判定 |
 | 工程・日程・依存関係 | `gantt` | 宣言から判定 |
 | 情報の変化 | `eventmodeling` | 宣言から判定 |
 | システム構成図 | `flowchart LR` | `system`（既定） |
@@ -679,3 +680,30 @@ gantt
 - 自動列: `id`（ID）、`start`（開始）、`end`（終了）、`duration`（経過時間）、`status`（状態）。これらはMermaidから計算し、rowsで上書きできません。経過時間は表示期間の暦時間で、休日を引いた作業工数ではありません。
 - 任意列: `owner`、`memo` 等。rowsに文字列・数値・真偽値を記述できます。未指定は「—」。keyは英字始まりの英数字・アンダースコア。一意である必要があり、task / constructor / prototype等は使用できません。
 - 列見出し・セルは折り返し、最も長いセルに合わせて行高を調整します。値は500文字以内。追加列はArchMapの表示設定であり、標準Mermaidの独自タスク構文ではありません。
+
+
+## Git graph
+
+標準 `gitGraph` を公式Mermaidで解析し、ArchMapで描画します。Git履歴・ブランチ戦略の図であり、面積比を示すTreemapや一般的な親子ツリーとは異なります。
+
+```mermaid
+---
+title: 開発とリリース
+---
+gitGraph LR:
+  commit id:"初期構成"
+  branch feature
+  commit id:"機能追加" type:HIGHLIGHT
+  checkout main
+  commit id:"設定変更"
+  merge feature id:"統合" tag:"v1.0"
+```
+
+- `commit`（id、tag、type）、`branch`（order）、`checkout` / `switch`、`merge`（id、tag、type）、`cherry-pick`（id、parent、tag）を扱います。マージの両親を保持し、cherry-pickの取り込み元は破線で示します。
+- `NORMAL` は丸、`REVERSE` は×入りの丸、`HIGHLIGHT` は塗り四角。既定のマージは二重丸、cherry-pickは＋入りの丸です。色だけに意味を依存させません。
+- 方向は `gitGraph LR:`（既定）、`TB:`、`BT:`。ブランチを固定した行／列へ置き、コミット・タグは横書きで折り返します。コミットの記述順を勝手に並べ替えません。
+- frontmatterの `config.gitGraph` では `mainBranchName`、`mainBranchOrder`、`showBranches`、`showCommitLabel`、`parallelCommits` を扱います。`parallelCommits:true` の場合のみ親からの深さに基づく同時列へ配置します。
+- `config.themeVariables.git0`〜`git7` でブランチ色を指定できます（安全なCSS色のみ、8色を循環）。ラベル回転・余白・その他テーマはArchMapの配置と配色を使い、未対応の表示設定は警告します。
+- IDは重複させないでください。比較・継続更新する図は明示的なidを推奨します。id省略時の識別子はMermaidが生成します。
+- 任意のat/grid配置や直線指定は受け付けません。`%% archmap:` は `view:"gitgraph"` のみ任意で使用できます。上限は400コミット・200ブランチ・1,000接続です。
+- 履歴の意味を保持するため長い履歴を折り返して連結しません。大きい履歴はリリース・機能単位に分けるか、TB/BTを選んでください。実リポジトリを読み取る機能ではありません。

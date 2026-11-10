@@ -229,4 +229,22 @@ gantt
   動作確認 :verify, after deploy, 20m
   公開完了 :milestone, release, after verify, 0m
 `},
+{id:'gitgraph',title:'Git graph',subtitle:'ブランチ・コミット・マージとリリースを追う。',source:`---
+title: 機能開発からリリースまで
+---
+gitGraph LR:
+  commit id:"初期構成"
+  branch feature
+  commit id:"認証機能" type:HIGHLIGHT
+  checkout main
+  commit id:"設定更新"
+  checkout feature
+  commit id:"レビュー修正"
+  checkout main
+  merge feature id:"機能を統合" tag:"v1.0"
+  branch hotfix
+  commit id:"不具合修正"
+  checkout main
+  cherry-pick id:"不具合修正" tag:"v1.0.1"
+`},
 ];

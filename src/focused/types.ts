@@ -1,5 +1,5 @@
 /** The deliberately small ArchMap diagram model. Positions use a one-based grid. */
-export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn", "overview", "timeline", "eventmodeling", "gantt"] as const;
+export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn", "overview", "timeline", "eventmodeling", "gantt", "gitgraph"] as const;
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD" | "RL" | "BT";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
@@ -11,6 +11,7 @@ export interface DiagramNode {
   emphasis?: "new" | "changed" | "impact" | "unchanged";
   callout?: string;
   calloutSize?: number;
+  git?: {branch:string; order:number; type:number; tags:string[]; parents:string[]};
   gantt?: {start:number; end:number; milestone:boolean; active:boolean; done:boolean; critical:boolean; vertical:boolean};
   temporal?: {events?:string[]; order:number; lane:string; category:string};
   paint?: DiagramPaint;
@@ -47,6 +48,7 @@ export interface DiagramGrid {
   items: { id: string; rowSpan?: number; colSpan?: number }[];
 }
 export interface DiagramModel {
+  gitgraph?: {branches:string[]; showBranches:boolean; showCommitLabel:boolean; parallelCommits:boolean; colors:string[]};
   gantt?: {columns?:Array<{key:string;label:string;width:number}>; rows?:Record<string,Record<string,string>>; axisFormat:string; tickInterval?:string; weekday:string; todayMarker:string; excluded:Array<[number,number]>; theme:Record<string,string>};
   routing?: "straight" | "orthogonal";
   grid?: DiagramGrid;

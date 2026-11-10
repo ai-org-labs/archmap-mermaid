@@ -1,3 +1,4 @@
+import {gitGraphLayout} from './gitgraph.js';
 import {ganttLayout} from './gantt.js';
 import {focusModel,attentionStyle,focusTypography} from './attention.js';
 import {placeEdgeCallouts} from './annotations.js';
@@ -591,6 +592,7 @@ export function computeDiagramLayout(model: DiagramModel, options: DiagramLayout
 function computeRoutedLayout(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramLayout {
   const target = options.targetAspectRatio ?? 1.4;
   if (!Number.isFinite(target) || target < 0.25 || target > 4) throw new RangeError('targetAspectRatio must be between 0.25 and 4');
+  if(model.kind==='gitgraph')return gitGraphLayout(model);
   if(model.kind==='gantt')return ganttLayout(model);
   if(['timeline','eventmodeling'].includes(model.kind))return temporalLayout(model);
   if(model.kind==='overview')model={...model,nodes:model.nodes.map(n=>({...n,shape:'card',flowShape:'rect'}))};

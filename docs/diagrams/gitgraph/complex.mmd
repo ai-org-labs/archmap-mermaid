@@ -1,0 +1,22 @@
+---
+title: 複数機能の統合と修正の取り込み
+---
+gitGraph LR:
+commit id:"初期構成"
+branch feature-auth
+commit id:"認証機能" type:HIGHLIGHT
+branch feature-profile
+commit id:"プロフィール"
+checkout main
+commit id:"設定更新"
+branch hotfix
+commit id:"脆弱性修正" tag:"security"
+checkout feature-auth
+cherry-pick id:"脆弱性修正"
+commit id:"認証レビュー"
+checkout feature-profile
+commit id:"画面レビュー"
+checkout main
+merge hotfix id:"修正版" tag:"v1.0.1"
+merge feature-auth id:"認証統合"
+merge feature-profile id:"公開" tag:"v2.0"

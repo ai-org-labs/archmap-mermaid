@@ -1,3 +1,5 @@
+import {readGitGraph,gitConfig} from './gitgraph.js';
+import type {GitGraphDB} from 'mermaid/dist/diagrams/git/gitGraphTypes.js';
 import {readGantt,readGanttColumns} from './gantt.js';
 import type GanttDB from 'mermaid/dist/diagrams/gantt/ganttDb.js';
 import {readArchmapMetadata} from './metadata.js';
@@ -19,7 +21,7 @@ import { getIcon } from '../icons.js';
 
 export const DIAGRAM_LIMITS = {sourceLength:500_000,nodes:400,groups:200,edges:1000,gridCoordinate:400,groupDepth:8} as const;
 const colors = ['blue','green','orange','purple','gray'];
-const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn','overview','timeline','eventmodeling','gantt'];
+const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn','overview','timeline','eventmodeling','gantt','gitgraph'];
 type RecordValue = Record<string, unknown>;
 const record = (x: unknown): x is RecordValue => !!x && typeof x === 'object' && !Array.isArray(x);
 // Mermaid's diagram databases/configuration are stateful; serialize all parsing,
@@ -70,15 +72,19 @@ async function parse(source: string): Promise<DiagramModel> {
     });
     // Source-supplied settings must not change parser security or inject CSS.
     // Configuration affecting ArchMap's output is applied explicitly below.
-    if(Object.keys(rendererConfig).some(k=>!(/^\s*gantt\b/m.test(mermaidSource)?['sequence','theme','themeVariables','gantt']:['sequence']).includes(k)) || record(rendererConfig.sequence)&&Object.keys(rendererConfig.sequence).some(k=>k!=='showSequenceNumbers'))warning('Mermaidのテーマ・レイアウト設定はArchMapのテーマと配置に統一します。');
+    if(Object.keys(rendererConfig).some(k=>!(/^\s*gantt\b/m.test(mermaidSource)?['sequence','theme','themeVariables','gantt']:/^\s*gitGraph\b/m.test(mermaidSource)?['gitGraph','theme','themeVariables']:['sequence']).includes(k)) || record(rendererConfig.sequence)&&Object.keys(rendererConfig.sequence).some(k=>k!=='showSequenceNumbers'))warning('Mermaidのテーマ・レイアウト設定はArchMapのテーマと配置に統一します。');
     if(model.diagnostics.some(d=>d.severity==='error'))return model;
     const body=mermaidSource.replace(/^\s*%%.*$/gm,'').trim();
-    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b|timeline\b|eventmodeling\b|gantt\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling / gantt です。');return model;}
+    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b|timeline\b|eventmodeling\b|gantt\b|gitGraph\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling / gantt / gitGraph です。');return model;}
     if(/(?:^|;)\s*click\s+/m.test(body)){error('click / リンク操作は未対応です。');return model;}
-    mermaid.initialize({startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
+    const gitOptions=/^gitGraph\b/.test(body)?gitConfig(rendererConfig,warning):undefined;
+    mermaid.initialize({gitGraph:gitOptions,startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
     const diagram=await mermaid.mermaidAPI.getDiagramFromText(mermaidSource);
     model.title=text(diagram.db.getDiagramTitle?.()) || model.title;
-    if(diagram.type==='gantt') {
+    if(diagram.type==='gitGraph') {
+      Object.assign(model,readGitGraph(diagram.db as GitGraphDB,rendererConfig,gitOptions!,text));
+      if(Object.keys(metadata).some(k=>k!=='view'))error('Git graphでは配置・配線を履歴から決定します。ArchMap補助設定はviewのみ使用できます。');
+    } else if(diagram.type==='gantt') {
       Object.assign(model,readGantt(diagram.db as typeof GanttDB,rendererConfig,text,warning));
     } else if(diagram.type==='eventmodeling') {
       const temporal=readEventModel(await parseOfficial('eventmodeling',mermaidSource));Object.assign(model,{...temporal,title:temporal.title||model.title});
@@ -255,7 +261,7 @@ async function parse(source: string): Promise<DiagramModel> {
       for(const e of data.edges)model.edges.push({from:e.start,to:e.end,label:text(e.label),style:e.pattern==='dashed'?'dashed':'solid',arrow:e.arrowhead==='none'?'none':'open',bidirectional:false,line:0});
       if(db.getLinks().size)error('状態の click / リンク操作は未対応です。');
     }
-    if(['timeline','eventmodeling','gantt'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
+    if(['timeline','eventmodeling','gantt','gitgraph'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
     if(metadata.gantt!==undefined){if(model.kind!=='gantt')error('gantt表示設定はgantt構文専用です。');else readGanttColumns(model,metadata.gantt);}
     const calloutSize=(value:unknown):number|undefined=>{
       const headings:Record<string,number>={h1:36,h2:30,h3:26,h4:22,h5:18,h6:16};
@@ -351,7 +357,7 @@ async function parse(source: string): Promise<DiagramModel> {
     for(const edge of model.edges)if(!ids.has(edge.from)||!ids.has(edge.to))error('接続先のノードまたはグループが存在しません。');
     for(const group of model.groups){const seen=new Set([group.id]);let p=group.parent;while(p){if(seen.has(p)){error('グループの循環は未対応です。');break;}seen.add(p);p=model.groups.find(g=>g.id===p)?.parent;}if(seen.size>8)error('グループの入れ子は8段までです。');}
     if(model.style==='icons' && !['system','layers'].includes(model.kind))error('icons 表示は system / layers 専用です。');
-    if(['timeline','eventmodeling','gantt'].includes(model.kind)&&model.nodes.some(n=>n.at))error('時系列の順序を保つため at は使用できません。');
+    if(['timeline','eventmodeling','gantt','gitgraph'].includes(model.kind)&&model.nodes.some(n=>n.at))error('時系列の順序を保つため at は使用できません。');
     if(['sequence','layers'].includes(model.kind) && model.nodes.some(n=>n.at))warning('この表示では at を使わず、参加者またはグループの順序で配置します。');
     if(model.nodes.some(n=>n.at)&&model.groups.some(g=>g.direction))warning('手動配置 at を優先するため、グループのdirectionは自動配置には使いません。');
     let fragmentDepth=0;const activations=new Map<string,number>();
