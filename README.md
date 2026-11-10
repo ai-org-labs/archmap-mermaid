@@ -1,7 +1,7 @@
 # ArchMap Mermaid
 
 Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立したプロジェクトです。
-公式Mermaid 12.0.0のパーサーを利用し、MermaidのSVGレンダラーは呼び出しません。
+公式Mermaid 12.3.0のパーサーを利用し、MermaidのSVGレンダラーは呼び出しません。
 元の [ArchMap](https://github.com/ai-org-labs/archmap) は別プロジェクトとして維持します。
 
 - [Playground](https://ai-org-labs.github.io/archmap-mermaid/playground/)
@@ -10,8 +10,8 @@ Mermaid記法を、ArchMapの配置・配線・SVGレンダラーで描く独立
 
 ## 機能
 
-システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケース・業務フロー（BPMN風）の8種類。
-入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta の対応サブセットです。
+システム構成・レイヤースタック・シーケンス・画面遷移・アクティビティ・ER・ユースケース・業務フロー（BPMN風）に、ビジネス概略図・タイムライン・イベントモデリングを加えた11種類。
+入力は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling の対応サブセットです。
 独自DSLは採用せず、必要な表示設定だけ `%% archmap: JSON` コメントに記述します。
 互換範囲は [docs/SYNTAX.md](docs/SYNTAX.md) に列挙しています。
 

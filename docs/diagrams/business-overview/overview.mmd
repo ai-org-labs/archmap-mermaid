@@ -1,0 +1,8 @@
+---
+title: 受注業務の自動化 — 変更範囲
+---
+%% archmap: {"view":"overview","nodes":{"sales":{"icon":"user","emphasis":"unchanged"},"orders":{"icon":"browser","emphasis":"changed","callout":"① 二重入力をなくす","description":"受注情報を一度だけ入力"},"sync":{"icon":"server","emphasis":"new","callout":"② 在庫へ自動連携"},"stock":{"icon":"database","emphasis":"impact","callout":"③ 在庫更新が即時に"}}}
+flowchart LR
+  sales[営業担当] -->|受注登録| orders[受注システム]
+  orders -->|注文情報| sync[自動連携]
+  sync -->|在庫引当| stock[在庫システム]

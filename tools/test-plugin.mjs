@@ -18,7 +18,7 @@ for(const sample of DIAGRAM_SAMPLES){
  const file=path.join(temp,sample.id+'.mmd'),base=path.join(temp,'outputs',sample.id);
  await fs.writeFile(file,sample.source);
  const result=run(['render',file,'--out',base,'--png']);
- assert(result.nodes>0);assert(result.edges>0);assert(!result.diagnostics.some(d=>d.severity==='error'));
+ assert(result.nodes>0);assert(sample.id==='timeline' ? result.edges===0 : result.edges>0);assert(!result.diagnostics.some(d=>d.severity==='error'));
  const png=await fs.readFile(base+'.png');assert.equal(png.subarray(1,4).toString(),'PNG');assert.equal(png.readUInt32BE(16),result.pngWidth);assert.equal(png.readUInt32BE(20),result.pngHeight);
  assert((await fs.readFile(base+'.svg','utf8')).includes('<svg'));
  assert((await fs.readFile(base+'.html','utf8')).includes('Content-Security-Policy'));

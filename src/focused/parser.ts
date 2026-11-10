@@ -1,5 +1,7 @@
 import mermaid from 'mermaid';
-import {resolvePaint} from './paint.js';
+import {parse as parseOfficial} from '@mermaid-js/parser';
+import {readEventModel} from './temporal.js';
+import {resolvePaint,safePaint} from './paint.js';
 import {safeLink} from './links.js';
 import {FLOW_SHAPES} from './flow-shapes.js';
 import {validImageSource} from './images.js';
@@ -14,7 +16,7 @@ import { getIcon } from '../icons.js';
 
 export const DIAGRAM_LIMITS = {sourceLength:500_000,nodes:400,groups:200,edges:1000,gridCoordinate:400,groupDepth:8} as const;
 const colors = ['blue','green','orange','purple','gray'];
-const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn'];
+const kinds = ['system','layers','sequence','screens','activity','er','usecase','bpmn','overview','timeline','eventmodeling'];
 type RecordValue = Record<string, unknown>;
 const record = (x: unknown): x is RecordValue => !!x && typeof x === 'object' && !Array.isArray(x);
 // Mermaid's diagram databases/configuration are stateful; serialize all parsing,
@@ -43,7 +45,7 @@ async function parse(source: string): Promise<DiagramModel> {
     const metaLines=source.split('\n').map((value,index)=>({value,index})).filter(x=>/^\s*%%\s*archmap:/.test(x.value));
     if(metaLines.length>1) throw new Error('%% archmap: は1文書に1行だけ指定してください。');
     if(metaLines[0]){ const value=JSON.parse(metaLines[0].value.replace(/^\s*%%\s*archmap:\s*/,''));if(!record(value))throw new Error('archmap の補助設定はJSONオブジェクトです。');metadata=value; }
-    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups'].includes(key)) error(`未対応の補助設定: ${key}`);
+    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups','routing','edges'].includes(key)) error(`未対応の補助設定: ${key}`);
     if(metadata.view!==undefined && !kinds.includes(String(metadata.view)))error('view が不正です。');
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     let rendererConfig:RecordValue={};
@@ -69,15 +71,24 @@ async function parse(source: string): Promise<DiagramModel> {
     if(Object.keys(rendererConfig).some(k=>k!=='sequence') || record(rendererConfig.sequence)&&Object.keys(rendererConfig.sequence).some(k=>k!=='showSequenceNumbers'))warning('Mermaidのテーマ・レイアウト設定はArchMapのテーマと配置に統一します。');
     if(model.diagnostics.some(d=>d.severity==='error'))return model;
     const body=mermaidSource.replace(/^\s*%%.*$/gm,'').trim();
-    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta です。');return model;}
+    if(!/^(flowchart\b|graph\b|sequenceDiagram\b|stateDiagram-v2\b|erDiagram\b|usecase-beta\b|timeline\b|eventmodeling\b)/.test(body)){error('対応するMermaid構文は flowchart / graph / sequenceDiagram / stateDiagram-v2 / erDiagram / usecase-beta / timeline / eventmodeling です。');return model;}
     if(/(?:^|;)\s*click\s+/m.test(body)){error('click / リンク操作は未対応です。');return model;}
     mermaid.initialize({startOnLoad:false,securityLevel:'strict',maxTextSize:500_000,maxEdges:1000,flowchart:{htmlLabels:false},suppressErrorRendering:true});
     const diagram=await mermaid.mermaidAPI.getDiagramFromText(mermaidSource);
     model.title=text(diagram.db.getDiagramTitle?.()) || model.title;
-    if(diagram.type.startsWith('flowchart')) {
+    if(diagram.type==='eventmodeling') {
+      const temporal=readEventModel(await parseOfficial('eventmodeling',mermaidSource));Object.assign(model,{...temporal,title:temporal.title||model.title});
+    } else if(diagram.type==='timeline') {
+      model.kind='timeline'; model.direction='TD';
+      const db=diagram.db as unknown as {getTasks():Array<{id:number;section:string;task:string;events:string[]}>};
+      model.nodes=db.getTasks().map((t,i)=>({...node('period-'+t.id,text(t.task).trim()),description:t.events.map(e=>text(e).trim()).join('\n'),temporal:{order:i,lane:text(t.section||''),category:'period'}}));
+      let section='',sectionId='';
+      for(const n of model.nodes){if(n.temporal!.lane!==section){section=n.temporal!.lane;sectionId='section-'+model.groups.length;if(section)model.groups.push({id:sectionId,label:section,color:'gray',line:0});}if(section)n.group=sectionId;}
+
+    } else if(diagram.type.startsWith('flowchart')) {
       const db=diagram.db as FlowDB;
       model.kind=(metadata.view as DiagramKind) || 'system'; direction(db.getDirection());
-      if(!['system','layers','screens','activity','bpmn'].includes(model.kind))error('flowchart の view は system / layers / screens / activity / bpmn です。');
+      if(!['system','layers','screens','activity','bpmn','overview'].includes(model.kind))error('flowchart の view は system / layers / screens / activity / bpmn / overview です。');
       const groups=db.getSubGraphs(); const vertices=db.getVertices();
 
       const parent=(id:string)=>groups.find(g=>g.nodes.includes(id))?.id;
@@ -101,10 +112,19 @@ async function parse(source: string): Promise<DiagramModel> {
         if(v.labelType==='markdown' && /[*`]/.test(v.text || ''))warning('Markdownラベルの装飾は未対応です。文字列として表示します。');
         model.nodes.push(n);
       }
-      for(const e of db.getEdges()){
+      const flowEdges=db.getEdges();
+      for(const e of flowEdges){
+        let strokeWidth:number|undefined,stroke:string|undefined;
+        for(const style of [...(flowEdges.defaultStyle??[]),...(e.style??[])])for(const declaration of style.split(';')){
+          const parts=declaration.split(':');const key=parts.shift()?.trim();const value=parts.join(':').trim();
+          if(key==='stroke-width'){
+            if(!/^(?:\d+(?:\.\d+)?|\.\d+)(?:px)?$/.test(value)||parseFloat(value)<0.5||parseFloat(value)>16)error('接続のstroke-widthは0.5〜16pxで指定してください。');
+            else strokeWidth=parseFloat(value);
+          } else if(key==='stroke'){if(safePaint(value,true))stroke=value;else error('接続のstrokeは安全なCSS色を指定してください。');} else if(key&&!(key==='fill'&&value==='none'))warning('接続のstyleはstroke / stroke-widthに対応します。それ以外の装飾はArchMapの表示に統一します。');
+        }
         if(!['arrow_point','double_arrow_point','arrow_open','arrow_circle','double_arrow_circle','arrow_cross','double_arrow_cross'].includes(e.type || ''))error(`接続 ${e.start} → ${e.end}: 矢印 ${e.type} は未対応です。`);
-        if(e.style?.length||e.animate||e.animation)warning('接続のstyle・アニメーションはArchMapの表示に統一します。');
-        model.edges.push({invisible:e.stroke==='invisible',thick:e.stroke==='thick',sourceMarker:e.type==='double_arrow_circle'?'circle':e.type==='double_arrow_cross'?'cross':undefined,targetMarker:e.type?.includes('circle')?'circle':e.type?.includes('cross')?'cross':undefined,from:e.start,to:e.end,label:text(e.text),style:e.stroke==='dotted'?'dashed':'solid',bidirectional:e.type==='double_arrow_point',arrow:e.type==='arrow_open'?'none':'open',line:0});
+        if(e.animate||e.animation)warning('接続のアニメーションは未対応です。');
+        model.edges.push({stroke,strokeWidth,invisible:e.stroke==='invisible',thick:e.stroke==='thick',sourceMarker:e.type==='double_arrow_circle'?'circle':e.type==='double_arrow_cross'?'cross':undefined,targetMarker:e.type?.includes('circle')?'circle':e.type?.includes('cross')?'cross':undefined,from:e.start,to:e.end,label:text(e.text),style:e.stroke==='dotted'?'dashed':'solid',bidirectional:e.type==='double_arrow_point',arrow:e.type==='arrow_open'?'none':'open',line:0});
       }
     } else if(diagram.type==='er') {
       const db=diagram.db as ErDB; model.kind='er'; direction(db.getDirection());
@@ -231,6 +251,28 @@ async function parse(source: string): Promise<DiagramModel> {
       for(const e of data.edges)model.edges.push({from:e.start,to:e.end,label:text(e.label),style:e.pattern==='dashed'?'dashed':'solid',arrow:e.arrowhead==='none'?'none':'open',bidirectional:false,line:0});
       if(db.getLinks().size)error('状態の click / リンク操作は未対応です。');
     }
+    if(['timeline','eventmodeling'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
+    const calloutSize=(value:unknown):number|undefined=>{
+      const headings:Record<string,number>={h1:36,h2:30,h3:26,h4:22,h5:18,h6:16};
+      return typeof value==='string'?headings[value]:typeof value==='number'&&Number.isFinite(value)&&value>=12&&value<=48?value:undefined;
+    };
+    const routing=(value:unknown)=>value==='straight'||value==='orthogonal';
+    if(metadata.routing!==undefined){if(!routing(metadata.routing))error('routing は straight / orthogonal です。');else model.routing=metadata.routing;}
+    if(metadata.edges!==undefined){
+      if(!record(metadata.edges))error('edges は0始まりの接続番号をキーとするオブジェクトです。');
+      else for(const [id,opts] of Object.entries(metadata.edges)){
+        if(!/^(0|[1-9][0-9]*)$/.test(id)||!model.edges[Number(id)]||!record(opts)){error(`edges.${id} の指定が不正です。`);continue;}
+        const edge=model.edges[Number(id)]!;
+        for(const [key,value] of Object.entries(opts)){
+          if(key==='attention'&&model.kind==='overview'&&['context','focus','problem'].includes(String(value)))edge.attention=value as 'context'|'focus'|'problem';
+          else if(key==='routing'&&routing(value))edge.routing=value as 'straight'|'orthogonal';
+          else if(key==='callout'&&model.kind==='overview'&&typeof value==='string'&&value.trim()&&value.length<=300)edge.callout=value;
+          else if(key==='calloutSize'&&model.kind==='overview'&&calloutSize(value)!==undefined)edge.calloutSize=calloutSize(value);
+          else error(`edges.${id}.${key} は未対応、または値が不正です。`);
+        }
+      }
+    }
+    if((metadata.routing!==undefined||metadata.edges!==undefined)&&!diagram.type.startsWith('flowchart'))error('routing / edges はflowchart用の表示設定です。');
     model.style=(metadata.style as 'cards'|'icons')||'cards';
     if(metadata.nodes!==undefined){
       if(!record(metadata.nodes))error('nodes はノードIDをキーにしたオブジェクトです。');
@@ -240,6 +282,11 @@ async function parse(source: string): Promise<DiagramModel> {
         for(const [key,value] of Object.entries(opts)){
           if(key==='at' && Array.isArray(value)&&value.length===2&&value.every(v=>Number.isInteger(v)&&v>=1&&v<=400))n.at=value as [number,number];
           else if(key==='icon' && typeof value==='string')n.icon=value;
+          else if(key==='fontFamily'&&model.kind==='overview'&&['sans','serif','mono'].includes(String(value)))n.fontFamily=value as 'sans'|'serif'|'mono';
+          else if(key==='attention'&&model.kind==='overview'&&['context','focus','problem'].includes(String(value)))n.attention=value as 'context'|'focus'|'problem';
+          else if(key==='emphasis' && model.kind==='overview' && ['new','changed','impact','unchanged'].includes(String(value)))n.emphasis=value as DiagramNode['emphasis'];
+          else if(key==='callout' && model.kind==='overview' && typeof value==='string' && value.trim() && value.length<=300)n.callout=value;
+          else if(key==='calloutSize' && model.kind==='overview' && calloutSize(value)!==undefined)n.calloutSize=calloutSize(value);
           else if(key==='description' && typeof value==='string')n.description=value;
           else if(key==='color' && colors.includes(String(value)))n.color=value as DiagramColor;
           else if(key==='shape' && value==='modal' && model.kind==='screens')n.shape='modal';
@@ -257,7 +304,7 @@ async function parse(source: string): Promise<DiagramModel> {
         seen.add(item.id);items.push({id:item.id,rowSpan:item.rowSpan as number|undefined,colSpan:item.colSpan as number|undefined});
       }
       if(!items.length||children.some(id=>!seen.has(id)))error('grid.items に直下の全ノード・subgraphを1回ずつ指定してください。');
-      if(model.kind!=='system'||model.nodes.some(n=>n.at))error('grid は system 用です。nodes.at とは併用できません。');
+      if(!['system','overview'].includes(model.kind)||model.nodes.some(n=>n.at))error('grid は system / overview 用です。nodes.at とは併用できません。');
       return {columns:g.columns,items,sizing:g.sizing as 'content'|'equal'|undefined};
     };
     if(metadata.grid!==undefined)model.grid=readGrid(metadata.grid);
@@ -299,6 +346,7 @@ async function parse(source: string): Promise<DiagramModel> {
     for(const edge of model.edges)if(!ids.has(edge.from)||!ids.has(edge.to))error('接続先のノードまたはグループが存在しません。');
     for(const group of model.groups){const seen=new Set([group.id]);let p=group.parent;while(p){if(seen.has(p)){error('グループの循環は未対応です。');break;}seen.add(p);p=model.groups.find(g=>g.id===p)?.parent;}if(seen.size>8)error('グループの入れ子は8段までです。');}
     if(model.style==='icons' && !['system','layers'].includes(model.kind))error('icons 表示は system / layers 専用です。');
+    if(['timeline','eventmodeling'].includes(model.kind)&&model.nodes.some(n=>n.at))error('時系列の順序を保つため at は使用できません。');
     if(['sequence','layers'].includes(model.kind) && model.nodes.some(n=>n.at))warning('この表示では at を使わず、参加者またはグループの順序で配置します。');
     if(model.nodes.some(n=>n.at)&&model.groups.some(g=>g.direction))warning('手動配置 at を優先するため、グループのdirectionは自動配置には使いません。');
     let fragmentDepth=0;const activations=new Map<string,number>();

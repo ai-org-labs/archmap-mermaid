@@ -1,0 +1,12 @@
+---
+title: 注文登録から在庫更新まで
+---
+eventmodeling
+  tf 01 ui Order.Entry
+  tf 02 cmd Order.PlaceOrder { orderId: string }
+  tf 03 evt Order.OrderPlaced
+  tf 04 pcr Inventory.Reserve
+  tf 05 cmd Inventory.ReserveStock
+  tf 06 evt Inventory.StockReserved
+  tf 07 rmo Order.Status ->> 03 ->> 06
+  tf 08 ui Order.Confirmation

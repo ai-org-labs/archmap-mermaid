@@ -1,3 +1,4 @@
+import {focusModel,attentionStyle,focusTypography} from './attention.js';
 import {OUTPUT_THEME, palette} from './theme.js';
 import {safePaint} from './paint.js';
 import {safeLink} from './links.js';
@@ -5,7 +6,7 @@ import {flowShapeSvg} from './flow-shapes.js';
 import {imageSize,validImageSource} from './images.js';
 import { groupContains } from './groups.js';
 import { getIcon } from '../icons.js';
-import { entityContent, BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, junctionText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
+import { overviewContent, entityContent, BODY_SIZE, boxesOverlap, computeDiagramLayout, FONT, iconNodeText, junctionText, LABEL_SIZE, nodeText, segmentIntersectsBox, TITLE_SIZE, textWidth, wrapText } from './layout.js';
 import type { DiagramLayoutOptions, DiagramDiagnostic, DiagramLayout, DiagramLayoutNode, DiagramModel, DiagramRenderResult } from './types.js';
 
 export function escapeXml(value: string): string { return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[char]!)); }
@@ -23,6 +24,21 @@ function renderNode(box: DiagramLayoutNode, kind: DiagramModel['kind'], edges: D
   const colors = {...preset, fill:paint.fill??preset.fill, border:paint.stroke??preset.border, ink:paint.stroke??preset.ink};
   const bodyFill=paint.fill??OUTPUT_THEME.surface, titleColor=paint.color??OUTPUT_THEME.title, detailColor=paint.color??OUTPUT_THEME.detail;
   const text = nodeText(node, kind, w), icon = node.icon ? getIcon(node.icon) : undefined;
+  if(kind==='timeline') {
+    return `<g class="archmap-node archmap-period" data-node="${escapeXml(node.id)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="${bodyFill}" stroke="${colors.border}"/><path d="M ${x+208} ${y+16} V ${y+h-16}" stroke="${colors.ink}" stroke-width="3"/><circle cx="${x+208}" cy="${y+32}" r="6" fill="${colors.ink}"/>${textLines(wrapText(node.label,160,22),x+24,y+38,22,30,titleColor,700)}${textLines(wrapText(node.description??'',364,18),x+232,y+38,18,27,detailColor)}</g>`;
+  }
+  if(kind==='overview') {
+    const c=overviewContent(node),status={new:['新規','#087f72','#e5f6f1'],changed:['変更','#bd4d13','#fff2e6'],impact:['影響あり','#8a45aa','#f6ecfc'],unchanged:['変更なし','#64748b','#f1f5f9']}[node.emphasis??'unchanged'];
+    const typography=focusTypography(node);
+    const heading=(svg:string)=>typography?`<g font-family="${escapeXml(typography.family)}">${svg}</g>`:svg;
+    const visual=attentionStyle(node.attention),accent=visual?.accent??(node.emphasis?status[1]:colors.ink);
+    let ty=y+32;
+    const badge=node.emphasis?textLines([status[0]],x+24,ty,14,20,accent,700):'';if(node.emphasis)ty+=32;
+    const art=node.image?renderImage(node,x+24,ty-12,w-48,c.media):icon?`<svg x="${x+24}" y="${ty-12}" width="${visual?.iconSize??48}" height="${visual?.iconSize??48}" viewBox="${escapeXml(icon.viewBox)}" color="${accent}">${icon.body}</svg>`:'';
+    if(c.media)ty+=c.media+12;
+    const bubble=c.callout.length?`<path class="archmap-callout" d="M ${x+16} ${y+c.body+14} H ${x+36} L ${x+48} ${y+c.body} L ${x+60} ${y+c.body+14} H ${x+w-16} Q ${x+w} ${y+c.body+14} ${x+w} ${y+c.body+30} V ${y+h-16} Q ${x+w} ${y+h} ${x+w-16} ${y+h} H ${x+16} Q ${x} ${y+h} ${x} ${y+h-16} V ${y+c.body+30} Q ${x} ${y+c.body+14} ${x+16} ${y+c.body+14} Z" fill="${visual?.calloutFill??status[2]}" stroke="${accent}"/>${heading(textLines(c.callout,x+28,y+c.body+24+c.calloutSize,c.calloutSize,c.calloutLineHeight,accent,700))}`:'';
+    return `<g class="archmap-node archmap-overview" data-node="${escapeXml(node.id)}" data-attention="${node.attention??'default'}"><title>${escapeXml(node.label)}</title><rect x="${x}" y="${y}" width="${w}" height="${c.body}" rx="16" fill="${bodyFill}" stroke="${paint.stroke??accent}" stroke-width="${visual?.strokeWidth??(node.emphasis&&node.emphasis!=='unchanged'?2.5:1.2)}"/>${badge}${node.attention==='context'?`<g filter="url(#archmap-context-gray)">${art}</g>`:art}${heading(textLines(c.title,x+24,ty+10,c.titleSize,c.titleHeight,titleColor,visual?.weight??700))}${textLines(c.detail,x+24,ty+c.title.length*c.titleHeight+16,16,23,detailColor)}${bubble}</g>`;
+  }
   if(node.attributes) {
     const content=entityContent(node);let rowY=y+content.header;
     const rows=content.rows.map((r,i)=>{const top=rowY;rowY+=content.heights[i]!;return `<g class="archmap-attribute"><path d="M ${x} ${top} H ${x+w}" stroke="#e4eaf2"/>${textLines([r.a.keys.join('/')],x+12,top+21,10,17,paint.color??colors.ink,600)}${textLines(r.names,x+76,top+21,12,17,titleColor,500)}${textLines(r.types,x+230,top+21,11,17,detailColor)}${r.comments.length?textLines(r.comments,x+16,top+Math.max(r.names.length,r.types.length)*17+24,11,15,detailColor):''}</g>`;}).join('');
@@ -112,8 +128,11 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
   if (model.kind === 'sequence') return warnings;
   let connectorLabelCollision = false;
   for (const [index, edge] of layout.edges.entries()) {
+    if ((edge.edge.routing??model.routing)==='straight' && edge.points.length!==2) report(edge.edge.line, '自己ループや重なる接続先は直線化できないため、通常の経路で表示しています。');
+    if ((edge.edge.routing??model.routing)==='straight' && edge.labelBox && layout.nodes.some(n=>boxesOverlap(edge.labelBox!,n))) report(edge.edge.line,'直線接続のラベルがノードに重なっています。at または個別の orthogonal 指定で調整してください。');
     for (let i = 1; i < edge.points.length; i++) {
       const a = edge.points[i - 1]!, b = edge.points[i]!;
+      if(model.kind==='overview' && (edge.edge.routing??model.routing)==='straight' && layout.nodes.some(n=>n.node.callout && segmentIntersectsBox(a,b,{x:n.x,y:n.y+overviewContent(n.node).body,width:n.width,height:n.height-overviewContent(n.node).body}))) report(edge.edge.line,'直線接続が吹き出しに重なっています。at または個別の orthogonal 指定で調整してください。');
       if (layout.nodes.some(n => !(n.node.id === edge.edge.from && i === 1) && !(n.node.id === edge.edge.to && i === edge.points.length - 1) && segmentIntersectsBox(a, b, n, -1))) report(edge.edge.line, '接続経路がノードに重なっています。ノードの 補助設定の at を調整してください。');
       if (layout.edges.some((other, j) => j !== index && other.labelBox && segmentIntersectsBox(a, b, other.labelBox, 2))) connectorLabelCollision = true;
     }
@@ -123,8 +142,10 @@ function geometryWarnings(layout: DiagramLayout, model: DiagramModel): DiagramDi
 }
 
 export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramRenderResult {
+  const sourceModel=model;
+  model=focusModel(model);
   const start = performance.now(), layout = computeDiagramLayout(model, options);
-  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram', bpmn:'Business process' }[model.kind]);
+  const title = model.title || ({ system: 'System architecture', layers: 'Layer stack', sequence: 'Sequence diagram', screens: 'Screen flow', activity: 'Activity diagram', er:'Entity relationship diagram', usecase:'Use case diagram', bpmn:'Business process', overview:'System overview', timeline:'Timeline', eventmodeling:'Event modeling' }[model.kind]);
   const groups = layout.groups.map(({ group, x, y, width, height }) => {
     const preset = palette[group.color] ?? palette.gray;
     const paint=Object.fromEntries(Object.entries(group.paint??{}).filter(([key,value])=>safePaint(value,key==='color')));
@@ -150,7 +171,7 @@ export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions
   }).join('');
   const notes=(layout.notes??[]).map(n=>`<g class="archmap-sequence-note"><rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="6" fill="#fff7df" stroke="#d9bd7c"/>${textLines(wrapText(n.label,n.width-32,12),n.x+16,n.y+21,12,17,'#685626')}</g>`).join('');
   const destructions=(layout.destructions??[]).map(d=>`<path class="archmap-destruction" d="M ${d.x-8} ${d.y-8} l 16 16 M ${d.x+8} ${d.y-8} l -16 16" stroke="#64748b" stroke-width="2"/>`).join('');
-  const connections = layout.edges.filter(e=>!e.edge.invisible).map(({ edge, points }) => `<path class="archmap-edge" d="${points.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="${OUTPUT_THEME.edge}" stroke-width="${edge.thick?3.2:1.8}" stroke-linejoin="round" stroke-linecap="round"${edge.style === 'dashed' ? ' stroke-dasharray="6 5"' : ''}${edge.targetMarker ? ` marker-end="url(#archmap-${escapeXml(edge.targetMarker)})"` : edge.arrow === "none" ? "" : ` marker-end="url(#${edge.arrow === "filled" ? "archmap-arrow-filled" : "archmap-arrow"})"`}${edge.sourceMarker ? ` marker-start="url(#archmap-${escapeXml(edge.sourceMarker)})"` : edge.bidirectional ? ` marker-start="url(#${edge.arrow === 'filled' ? 'archmap-arrow-filled' : 'archmap-arrow-start'})"` : ''}/>`).join('');
+  const connections = layout.edges.filter(e=>!e.edge.invisible).map(({ edge, points }) => `<path class="archmap-edge" d="${points.map((p, i) => `${i ? 'L' : 'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="${edge.stroke&&safePaint(edge.stroke,true)?edge.stroke:OUTPUT_THEME.edge}" stroke-width="${edge.strokeWidth??(edge.thick?3.2:1.8)}" stroke-linejoin="round" stroke-linecap="round"${edge.style === 'dashed' ? ' stroke-dasharray="6 5"' : ''}${edge.targetMarker ? ` marker-end="url(#archmap-${escapeXml(edge.targetMarker)})"` : edge.arrow === "none" || (edge.strokeWidth!==undefined||edge.stroke!==undefined) ? "" : ` marker-end="url(#${edge.arrow === "filled" ? "archmap-arrow-filled" : "archmap-arrow"})"`}${edge.sourceMarker ? ` marker-start="url(#archmap-${escapeXml(edge.sourceMarker)})"` : edge.bidirectional && edge.strokeWidth===undefined && edge.stroke===undefined ? ` marker-start="url(#${edge.arrow === 'filled' ? 'archmap-arrow-filled' : 'archmap-arrow-start'})"` : ''}/>`).join('');
   const centralConnections=layout.edges.flatMap(({edge,points})=>[...(edge.central==='source'||edge.central==='both'?[points[0]!]:[]),...(edge.central==='target'||edge.central==='both'?[points[points.length-1]!]:[])]).map(p=>`<circle class="archmap-central-connection" cx="${p.x}" cy="${p.y}" r="4.5" fill="#fff" stroke="${OUTPUT_THEME.edge}" stroke-width="1.6"/>`).join('');
   const labels = layout.edges.map(({ edge, points, labelBox }) => {
     if (!labelBox || edge.invisible) return '';
@@ -159,6 +180,22 @@ export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions
       return `<g class="archmap-edge-label">${textLines(wrapText(edge.label, 166, LABEL_SIZE), rightToLeft ? labelBox.x + labelBox.width : labelBox.x, labelBox.y + 17, LABEL_SIZE, 16, '#53647a', 500, rightToLeft ? 'end' : 'start')}</g>`;
     }
     return `<g class="archmap-edge-label"><rect x="${labelBox.x}" y="${labelBox.y}" width="${labelBox.width}" height="${labelBox.height}" rx="5" fill="#fff"/>${textLines(wrapText(edge.label, 166, LABEL_SIZE), labelBox.x + labelBox.width / 2, labelBox.y + 17, LABEL_SIZE, 16, '#53647a', 500, 'middle')}</g>`;
+  }).join('');
+  const sizedArrowPaths=layout.edges.filter(e=>!e.edge.invisible && (e.edge.strokeWidth!==undefined||e.edge.stroke!==undefined)).map(({edge,points})=>{
+    const tips: [typeof points[number],typeof points[number]][]=[];
+    if(edge.arrow!=='none'&&!edge.targetMarker)tips.push([points[points.length-1]!,points[points.length-2]!]);
+    if(edge.bidirectional&&!edge.sourceMarker)tips.push([points[0]!,points[1]!]);
+    return tips.map(([tip,prev])=>{
+      const dx=tip.x-prev.x,dy=tip.y-prev.y,length=Math.hypot(dx,dy);if(!length)return '';
+      const ux=dx/length,uy=dy/length,size=8+(edge.strokeWidth??1.8)*1.2,half=size*.55;
+      const bx=tip.x-ux*size,by=tip.y-uy*size;
+      return `<path class="archmap-sized-arrow" d="M ${bx-uy*half} ${by+ux*half} L ${tip.x} ${tip.y} L ${bx+uy*half} ${by-ux*half}" fill="none" stroke="${edge.stroke&&safePaint(edge.stroke,true)?edge.stroke:OUTPUT_THEME.edge}" stroke-width="${Math.max(1.8,(edge.strokeWidth??1.8)*.55)}" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }).join('');
+  }).join('');
+  const edgeCallouts=(layout.edgeCallouts??[]).map(c=>{
+    const color=layout.edges[c.edgeIndex].edge.stroke??'#60758a',ink=safePaint(color,true)?color:'#60758a';
+    const tipX=Math.max(c.x+16,Math.min(c.anchor.x,c.x+c.width-16));
+    return `<g class="archmap-edge-callout"><path d="M ${c.anchor.x} ${c.anchor.y} L ${tipX} ${c.y+c.height/2}" stroke="${ink}" fill="none"/><rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="12" fill="#fffaf0" stroke="${ink}"/>${textLines(c.text,c.x+18,c.y+16+c.fontSize,c.fontSize,Math.ceil(c.fontSize*1.35),ink,700)}</g>`;
   }).join('');
   const markerShapes: Record<string,string>={
     'solid-half-top':`<path d="M -9 -6 L 0 0 H -9 Z" fill="${OUTPUT_THEME.edge}"/>`,
@@ -173,8 +210,22 @@ export function renderDiagram(model: DiagramModel, options: DiagramLayoutOptions
     circle:'<circle cx="-4" cy="0" r="4" fill="#fff"/>',cross:'<path d="M -8 -4 L 0 4 M -8 4 L 0 -4"/>',
   };
   const semanticMarkers=Object.entries(markerShapes).map(([id,shape])=>`<marker id="archmap-${id}" viewBox="-24 -9 26 18" markerWidth="26" markerHeight="18" refX="0" refY="0" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><g stroke="#526981" stroke-width="1.5" fill="none">${shape}</g></marker>`).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${escapeXml(title)}" style="font-family:${escapeXml(FONT)};background:#fff"><title>${escapeXml(title)}</title><desc>${escapeXml(`${model.nodes.length} nodes and ${model.edges.length} connections. ${model.nodes.map(n => n.label).join(', ')}.`)}</desc><defs>${semanticMarkers}<marker id="archmap-arrow-filled" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 8 4 L 0 8 Z" fill="${OUTPUT_THEME.edge}"/></marker><marker id="archmap-arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="${OUTPUT_THEME.edge}" stroke-width="1.7" stroke-linejoin="round"/></marker><marker id="archmap-arrow-start" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="${OUTPUT_THEME.edge}" stroke-width="1.7" stroke-linejoin="round"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${model.title ? textLines(wrapText(model.title, layout.width - 72, 19), 36, 42, 19, 26, '#26364b', 650) : ''}${layerBands}${groups}${lifelines}${fragments}${activations}${connections}${centralConnections}${notes}${destructions}${layout.nodes.map(node => renderNode(node, model.kind, layout.edges)).join('')}${labels}</svg>`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${escapeXml(title)}" style="font-family:${escapeXml(FONT)};background:#fff"><title>${escapeXml(title)}</title><desc>${escapeXml(`${model.nodes.length} nodes and ${model.edges.length} connections. ${model.nodes.map(n => n.label).join(', ')}.`)}</desc><defs><filter id="archmap-context-gray"><feColorMatrix type="saturate" values="0"/></filter>${semanticMarkers}<marker id="archmap-arrow-filled" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M 0 0 L 8 4 L 0 8 Z" fill="${OUTPUT_THEME.edge}"/></marker><marker id="archmap-arrow" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="${OUTPUT_THEME.edge}" stroke-width="1.7" stroke-linejoin="round"/></marker><marker id="archmap-arrow-start" viewBox="0 0 10 10" refX="8.7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="${OUTPUT_THEME.edge}" stroke-width="1.7" stroke-linejoin="round"/></marker></defs><rect width="100%" height="100%" fill="#fff"/>${model.title ? textLines(wrapText(model.title, layout.width - 72, model.kind==='overview'?30:19), 36, 42, model.kind==='overview'?30:19, model.kind==='overview'?40:26, '#26364b', 650) : ''}${layerBands}${groups}${lifelines}${fragments}${activations}${connections}${sizedArrowPaths}${centralConnections}${notes}${destructions}${layout.nodes.map(node => renderNode(node, model.kind, layout.edges)).join('')}${labels}${edgeCallouts}</svg>`;
+  // Clone semantic markers per colored edge so circle/cross endpoints keep their color too.
+  const markerCopies:string[]=[];
+  let visibleIndex=0;
+  svg=svg.replace(/<path class="archmap-edge"[^>]*\/>/g,path=>{
+    const e=layout.edges.filter(e=>!e.edge.invisible)[visibleIndex++]!.edge;
+    if(!e.stroke||!safePaint(e.stroke,true))return path;
+    return path.replace(/url\(#(archmap-[\w-]+)\)/g,(_,id:string)=>{
+      const original=svg.match(new RegExp('<marker id="'+id+'"[^]*?</marker>'))?.[0];
+      const newId=id+'-edge-'+visibleIndex;
+      if(original)markerCopies.push(original.replace('id="'+id+'"','id="'+newId+'"').replace(/(stroke|fill)="(?!none|#fff")[^"]+"/g,'$1="'+e.stroke+'"'));
+      return 'url(#'+newId+')';
+    });
+  });
+  svg=svg.replace('</defs>',markerCopies.join('')+'</defs>');
   const warnings = geometryWarnings(layout, model);
-  const resultModel = warnings.length ? { ...model, diagnostics: [...model.diagnostics, ...warnings] } : model;
+  const resultModel = warnings.length ? { ...sourceModel, diagnostics: [...sourceModel.diagnostics, ...warnings] } : sourceModel;
   return { svg, model: resultModel, layout, durationMs: Math.round((performance.now() - start) * 100) / 100 };
 }

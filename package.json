@@ -16,15 +16,16 @@
     "test:plugin": "node tools/test-plugin.mjs"
   },
   "devDependencies": {
+    "@archmap/icons": "file:vendor/archmap-icons-0.1.3.tgz",
+    "@mermaid-js/parser": "2.0.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.0.1",
+    "js-yaml": "^4.3.2",
     "jsdom": "^26.1.0",
+    "mermaid": "12.3.0",
     "typescript": "^5.6.3",
     "vite": "^8.3.0",
-    "vitest": "^4.1.11",
-    "@archmap/icons": "file:vendor/archmap-icons-0.1.3.tgz",
-    "js-yaml": "^4.3.2",
-    "mermaid": "12.0.0"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "lodash-es": "4.18.1"

@@ -1,3 +1,7 @@
+import {focusModel,attentionStyle,focusTypography} from './attention.js';
+import {placeEdgeCallouts} from './annotations.js';
+import {straightConnections} from './straight.js';
+import {temporalLayout} from './temporal.js';
 import {OUTPUT_THEME} from './theme.js';
 import {flowShapePort} from './flow-shapes.js';
 import {imageSize} from './images.js';
@@ -83,6 +87,7 @@ export function entityContent(node: DiagramNode) {
   return {width,title,header,rows,heights,height:header+(rows.length?heights.reduce((a,b)=>a+b,0):38)};
 }
 function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: number; height: number } {
+  if(kind==='overview')return overviewContent(node);
   if(node.image) {const im=imageSize(node),width=Math.max(180,im.width+40);return {width,height:im.height+48+wrapText(node.label,width-40).length*21+(node.description?wrapText(node.description,width-40,BODY_SIZE).length*17+8:0)};}
   if(node.attributes) {const e=entityContent(node);return {width:e.width,height:e.height};}
   const width = kind === 'bpmn' ? 180 : kind === 'sequence' ? 180 : node.shape === 'decision' ? 280 : 240;
@@ -92,6 +97,17 @@ function sizeNode(node: DiagramNode, kind: DiagramModel['kind']): { width: numbe
   if(node.flowShape && ['circle','dbl-circ','fr-circ','sm-circ','f-circ','cross-circ'].includes(node.flowShape))return {width,height:Math.max(width,height)};
   return { width, height: node.shape === 'decision' ? Math.max(140, height * 1.55) : height };
 }
+
+export function overviewContent(node:DiagramNode) {
+  const visual=attentionStyle(node.attention),titleSize=visual?.titleSize??24,titleHeight=Math.ceil(titleSize*1.33);
+  const calloutSize=node.calloutSize??visual?.calloutSize??22,calloutLineHeight=Math.ceil(calloutSize*1.35);
+  const measureScale=focusTypography(node)?.measureScale??1;
+  const width=320,title=wrapText(node.label,272/measureScale,titleSize),detail=node.description?wrapText(node.description,272,16):[],callout=node.callout?wrapText(node.callout,264/measureScale,calloutSize):[];
+  const media=node.image?Math.min(180,imageSize(node).height):node.icon?(visual?.iconSize??52):0;
+  const body=32+(node.emphasis?32:0)+media+(media?12:0)+title.length*titleHeight+(detail.length?12+detail.length*23:0)+24;
+  return {width,height:body+(callout.length?30+callout.length*calloutLineHeight+22:0),title,detail,callout,body,media,calloutSize,calloutLineHeight,titleSize,titleHeight};
+}
+
 export function boxesOverlap(a: DiagramBox, b: DiagramBox, padding = 0): boolean {
   return a.x < b.x + b.width + padding && a.x + a.width + padding > b.x && a.y < b.y + b.height + padding && a.y + a.height + padding > b.y;
 }
@@ -99,7 +115,13 @@ export function segmentIntersectsBox(a: DiagramPoint, b: DiagramPoint, box: Diag
   const left = box.x - padding, right = box.x + box.width + padding, top = box.y - padding, bottom = box.y + box.height + padding;
   if (a.x === b.x) return a.x > left && a.x < right && Math.max(a.y, b.y) > top && Math.min(a.y, b.y) < bottom;
   if (a.y === b.y) return a.y > top && a.y < bottom && Math.max(a.x, b.x) > left && Math.min(a.x, b.x) < right;
-  return false;
+  let low=0,high=1;
+  for(const [start,delta,min,max] of [[a.x,b.x-a.x,left,right],[a.y,b.y-a.y,top,bottom]]){
+    if(!delta){if(start<=min||start>=max)return false;continue;}
+    const t0=(min-start)/delta,t1=(max-start)/delta;
+    low=Math.max(low,Math.min(t0,t1));high=Math.min(high,Math.max(t0,t1));
+  }
+  return low<high && high>0 && low<1;
 }
 function tidy(points: DiagramPoint[]): DiagramPoint[] {
   const result: DiagramPoint[] = [];
@@ -561,8 +583,14 @@ function layoutDefects(layout: DiagramLayout, model: DiagramModel): number[] {
 }
 
 export function computeDiagramLayout(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramLayout {
+  model=focusModel(model);
+  return placeEdgeCallouts(straightConnections(computeRoutedLayout(model,options),model));
+}
+function computeRoutedLayout(model: DiagramModel, options: DiagramLayoutOptions = {}): DiagramLayout {
   const target = options.targetAspectRatio ?? 1.4;
   if (!Number.isFinite(target) || target < 0.25 || target > 4) throw new RangeError('targetAspectRatio must be between 0.25 and 4');
+  if(['timeline','eventmodeling'].includes(model.kind))return temporalLayout(model);
+  if(model.kind==='overview')model={...model,nodes:model.nodes.map(n=>({...n,shape:'card',flowShape:'rect'}))};
   const baseline = layoutWithSpacing(model);
   // Respect authored coordinates and diagram-specific chronology/layer geometry.
   // Limit the extra routing work: at most two candidates for modest graphs.
@@ -611,7 +639,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
 
   const iconStyle = model.style === 'icons' && (model.kind === 'system' || model.kind === 'layers');
   const usesIcon = (node: DiagramNode) => !node.image && iconStyle && (node.shape === 'card' || node.shape === 'database');
-  const recursive=model.kind==='system'&&!model.nodes.some(n=>n.at)&&(model.groups.some(g=>g.parent||g.grid)||!!model.grid);
+  const recursive=['system','overview'].includes(model.kind)&&!model.nodes.some(n=>n.at)&&(model.groups.some(g=>g.parent||g.grid)||!!model.grid);
   const cells = recursive?new Map(model.nodes.map(n=>[n.id,{col:0,row:0}])):placeCells(model), sizes = model.nodes.map(node => {
     if(model.kind==='bpmn' && (node.shape==='start'||node.shape==='end')) {
       const text=nodeText(node,model.kind,80);const diameter=Math.max(80,text.title.length*21+text.description.length*17+48);
@@ -652,7 +680,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
 
   const columns = Math.max(1, ...[...cells.values()].map(c => c.col + 1)), rows = Math.max(1, ...[...cells.values()].map(c => c.row + 1));
   const pitchX = maxW + gapX;
-  const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, 19).length * 26 + 22 : 0;
+  const titleHeight = model.title ? wrapText(model.title, marginX * 2 + columns * maxW + (columns - 1) * gapX - 72, model.kind==='overview'?30:19).length * (model.kind==='overview'?40:26) + 22 : 0;
   const marginY = titleHeight + Math.max(groupHeader * nesting + 48, screenGap ? gapY / 2 + 32 : 0);
   const xGutters = Array.from({ length: columns + 1 }, (_, i) => marginX - gapX / 2 + i * pitchX);
   // Nested headings need room only where that group actually starts. Reserving
@@ -665,7 +693,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
   const nodes: DiagramLayoutNode[] = model.nodes.map((node, i) => ({ node, x: marginX + cells.get(node.id)!.col * pitchX + (maxW - sizes[i]!.width) / 2, y: rowY[cells.get(node.id)!.row]! + (usesIcon(node) || model.kind === 'screens' && (node.shape === 'card' || node.shape === 'modal') ? 0 : (maxH - sizes[i]!.height) / 2), ...sizes[i]!, ...(usesIcon(node) ? { iconMode: true } : {}) }));
   const compound=recursive?recursiveGroupLayout(model,new Map(nodes.map(n=>[n.node.id,n])),spacing):undefined;
   if(compound){
-    const ox=48,oy=48+(model.title?wrapText(model.title,Math.max(240,compound.width),19).length*26+22:0);
+    const ox=48,oy=48+(model.title?wrapText(model.title,Math.max(240,compound.width),model.kind==='overview'?30:19).length*(model.kind==='overview'?40:26)+22:0);
     for(const n of nodes){const box=compound.nodes.get(n.node.id)!;n.x=box.x+ox;n.y=box.y+oy;}
     for(const box of compound.groups.values()){box.x+=ox;box.y+=oy;}
     const boxes=[...nodes,...compound.groups.values()];
@@ -823,7 +851,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     const distance = length(points);
     const direct = length([points[0]!, points[points.length - 1]!]);
     // A reduced crossing count must not buy a lap around the whole canvas.
-    const excess = ['system','er','usecase'].includes(model.kind) ? Math.max(0, distance - direct - (gapX + gapY) / 2) : 0;
+    const excess = ['system','overview','er','usecase'].includes(model.kind) ? Math.max(0, distance - direct - (gapX + gapY) / 2) : 0;
     return distance + Math.max(0, points.length - 2) * 60 + excess * 3;
   };
   const routeOne = (spec: typeof specs[number], edgeIndex: number) => {
@@ -917,7 +945,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
         for (const previous of edges) for (let j = 1; j < previous.points.length; j++) {
           const p = points[i - 1]!, q = points[i]!, r = previous.points[j - 1]!, s = previous.points[j]!;
           if (p.x === q.x && r.x === s.x && p.x === r.x && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) > Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) || p.y === q.y && r.y === s.y && p.y === r.y && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) > Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x))) score += 1e7;
-          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += ['system','er','usecase'].includes(model.kind) ? 1000 : 240;
+          if (p.x === q.x && r.y === s.y && p.x > Math.min(r.x, s.x) && p.x < Math.max(r.x, s.x) && r.y > Math.min(p.y, q.y) && r.y < Math.max(p.y, q.y) || p.y === q.y && r.x === s.x && r.x > Math.min(p.x, q.x) && r.x < Math.max(p.x, q.x) && p.y > Math.min(r.y, s.y) && p.y < Math.max(r.y, s.y)) score += ['system','overview','er','usecase'].includes(model.kind) ? 1000 : 240;
         }
       }
       let labelBox: DiagramBox | undefined;
@@ -976,7 +1004,7 @@ function layoutWithSpacing(model: DiagramModel, spacing = {x: 1, y: 1}): Diagram
     }
     return cost;
   };
-  if (['system','er','usecase'].includes(model.kind) && specs.length > 1 && specs.length <= 60) {
+  if (['system','overview','er','usecase'].includes(model.kind) && specs.length > 1 && specs.length <= 60) {
     let best = { edges, usedLabels, cost: solutionCost() };
     const orders = [
       [...specs].reverse(),

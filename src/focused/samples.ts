@@ -172,4 +172,29 @@ flowchart LR
   classDef event fill:#ecfdf5,stroke:#059669,color:#064e3b
   class start,finish event
 `},
+{id:'overview',title:'ビジネス概略図',subtitle:'主役と問題にフォーカス。書体・吹き出し・線の色で伝える。',source:"---\ntitle: 不正利用を検知し、PCの通信を遮断する\n---\n%% archmap: {\"view\": \"overview\", \"nodes\": {\"servers\": {\"icon\": \"server\", \"description\": \"業務データ・個人情報\", \"callout\": \"個人情報等の不正利用\", \"calloutSize\": \"h6\"}, \"external\": {\"icon\": \"cloud\", \"description\": \"インターネット等の社外NW\", \"callout\": \"ファイル交換ソフト等の不正使用\", \"calloutSize\": \"h6\"}, \"lan\": {\"description\": \"業務サーバー・PC・監視装置を接続\"}, \"pc\": {\"icon\": \"user\", \"description\": \"【不正利用の例】\\nファイル交換ソフトの使用\\n個人情報等・業務メールの外部送付\\nWebからのダウンロード 等\", \"callout\": \"× 通信遮断\", \"calloutSize\": \"h1\", \"attention\": \"problem\"}, \"monitor\": {\"icon\": \"shield\", \"description\": \"① 操作ログ収集：PC操作ログを収集\\n② ログチェック：社内ルールでアプリの使用を監視\", \"callout\": \"③ 通信制御\\n不正利用PCの通信を\\n即座にネットワークから遮断\", \"calloutSize\": \"h4\", \"attention\": \"focus\", \"fontFamily\": \"serif\"}}, \"grid\": {\"columns\": 3, \"items\": [{\"id\": \"servers\"}, {\"id\": \"lan\"}, {\"id\": \"external\"}, {\"id\": \"pc\", \"colSpan\": 2}, {\"id\": \"patent\"}]}, \"edges\": {\"2\": {\"routing\": \"straight\", \"attention\": \"problem\"}, \"3\": {\"attention\": \"focus\"}, \"4\": {\"attention\": \"focus\"}}}\nflowchart TB\n  servers[業務サーバー群]\n  external[社外ネットワーク]\n  lan[社内LAN]\n  pc[利用者PC]\n  subgraph patent[特許出願中部分（原図の表記）]\n    monitor[監視・通信制御]\n  end\n  servers --- lan\n  external --- lan\n  lan --x pc\n  pc -->|① 操作ログ| monitor\n  monitor -->|③ 通信制御| lan\n  style lan fill:#fff9bd,stroke:#a59b24,color:#242417\n  style servers stroke:#64748b\n  style external stroke:#25848c\n  style pc stroke:#dc2626\n  style monitor stroke:#df6a19\n  style patent fill:#fffaf2,stroke:#df6a19,color:#a34a13\n  linkStyle default stroke:#48535e,stroke-width:2px\n  linkStyle 2 stroke:#dc2626,stroke-width:6px\n  linkStyle 3,4 stroke:#e67b18,stroke-width:3px\n"},
+{id:'timeline',title:'タイムライン',subtitle:'施策・変更の順番を、期間と出来事で整理。',source:`---
+title: 受注自動化の導入計画
+---
+timeline
+  section 準備
+    2026年11月 : 業務範囲を合意 : 影響システムを確認
+    2026年12月 : 試行環境で検証
+  section 展開
+    2027年1月 : 一部拠点で先行運用
+    2027年2月 : 全拠点へ展開 : 効果を確認
+`},
+{id:'eventmodeling',title:'イベントモデリング',subtitle:'操作・コマンド・イベントを時間の流れに沿って追う。',source:`---
+title: 注文登録から在庫更新まで
+---
+eventmodeling
+  tf 01 ui Order.Entry
+  tf 02 cmd Order.PlaceOrder { orderId: string }
+  tf 03 evt Order.OrderPlaced
+  tf 04 pcr Inventory.Reserve
+  tf 05 cmd Inventory.ReserveStock
+  tf 06 evt Inventory.StockReserved
+  tf 07 rmo Order.Status ->> 03 ->> 06
+  tf 08 ui Order.Confirmation
+`},
 ];

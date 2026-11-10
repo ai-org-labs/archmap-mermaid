@@ -1,11 +1,17 @@
 /** The deliberately small ArchMap diagram model. Positions use a one-based grid. */
-export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn"] as const;
+export const DIAGRAM_KINDS = ["system", "layers", "sequence", "screens", "activity", "er", "usecase", "bpmn", "overview", "timeline", "eventmodeling"] as const;
 export type DiagramKind = typeof DIAGRAM_KINDS[number];
 export type DiagramDirection = "LR" | "TD" | "RL" | "BT";
 export type DiagramColor = "blue" | "green" | "orange" | "purple" | "gray";
 export type DiagramShape = "card" | "database" | "decision" | "start" | "end" | "fork" | "join" | "modal" | "note";
 export interface DiagramPaint { fill?: string; stroke?: string; color?: string }
 export interface DiagramNode {
+  fontFamily?: "sans" | "serif" | "mono";
+  attention?: "context" | "focus" | "problem";
+  emphasis?: "new" | "changed" | "impact" | "unchanged";
+  callout?: string;
+  calloutSize?: number;
+  temporal?: {order:number; lane:string; category:string};
   paint?: DiagramPaint;
   participantType?: string;
   links?: Array<{label:string;href:string}>;
@@ -29,7 +35,7 @@ export interface DiagramNode {
 }
 export interface DiagramGroup { grid?: DiagramGrid; paint?: DiagramPaint; collapsed?: boolean; direction?: DiagramDirection; id: string; label: string; color: DiagramColor; line: number; parent?: string; concurrent?: boolean }
 export interface DiagramScreenAction { node: string; label: string; to?: string; state?: string; effect?: string; when?: string; close?: boolean; line: number }
-export interface DiagramEdge { central?: "source" | "target" | "both"; invisible?: boolean; thick?: boolean;  relationship?: "association" | "include" | "extend" | "generalization"; sourceMarker?: string; targetMarker?: string; arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
+export interface DiagramEdge { attention?: "context" | "focus" | "problem"; stroke?: string; callout?: string; calloutSize?: number; routing?: "straight" | "orthogonal"; strokeWidth?: number; central?: "source" | "target" | "both"; invisible?: boolean; thick?: boolean;  relationship?: "association" | "include" | "extend" | "generalization"; sourceMarker?: string; targetMarker?: string; arrow?: "none" | "open" | "filled"; actionLine?: number; from: string; to: string; label: string; style: "solid" | "dashed"; bidirectional: boolean; line: number }
 export interface DiagramFragmentEvent { fill?: string; action: "alt" | "opt" | "loop" | "par" | "else" | "and" | "end" | "critical" | "option" | "break" | "rect"; label: string; afterEdge: number; line: number }
 export interface DiagramNoteEvent { from: string; to: string; label: string; placement: "left" | "right" | "over"; afterEdge: number; line: number }
 export interface DiagramActivationEvent { action: "activate" | "deactivate"; node: string; afterEdge: number; line: number }
@@ -40,6 +46,7 @@ export interface DiagramGrid {
   items: { id: string; rowSpan?: number; colSpan?: number }[];
 }
 export interface DiagramModel {
+  routing?: "straight" | "orthogonal";
   grid?: DiagramGrid;
   kind: DiagramKind;
   direction: DiagramDirection;
@@ -68,6 +75,7 @@ export interface DiagramScreenContent {
 export interface DiagramLayoutNode extends DiagramBox { node: DiagramNode; iconMode?: boolean; junction?: DiagramBox; junctionLabel?: DiagramBox; screen?: DiagramScreenContent }
 export interface DiagramLayoutEdge { edge: DiagramEdge; points: DiagramPoint[]; labelBox?: DiagramBox }
 export interface DiagramLayout {
+  edgeCallouts?: Array<DiagramBox & {text:string[];fontSize:number;anchor:DiagramPoint;edgeIndex:number}>;
   width: number;
   height: number;
   nodes: DiagramLayoutNode[];

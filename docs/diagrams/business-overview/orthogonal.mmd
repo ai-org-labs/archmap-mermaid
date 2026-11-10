@@ -1,0 +1,8 @@
+%% archmap: {"view":"overview","routing":"orthogonal","nodes":{"U":{"at":[1,2]},"S":{"at":[2,1],"emphasis":"changed"},"D":{"at":[2,3]},"O":{"at":[3,2],"emphasis":"new"}}}
+flowchart LR
+U[利用者] --> S[受注サービス]
+U --> D[在庫サービス]
+S --> O[出荷担当]
+D --> O
+linkStyle default stroke-width:3px
+linkStyle 0,2 stroke-width:6px

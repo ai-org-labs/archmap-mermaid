@@ -1,0 +1,26 @@
+---
+title: 不正利用を検知し、PCの通信を遮断する
+---
+%% archmap: {"view": "overview", "nodes": {"servers": {"icon": "server", "description": "業務データ・個人情報", "callout": "個人情報等の不正利用", "calloutSize": "h6"}, "external": {"icon": "cloud", "description": "インターネット等の社外NW", "callout": "ファイル交換ソフト等の不正使用", "calloutSize": "h6"}, "lan": {"description": "業務サーバー・PC・監視装置を接続"}, "pc": {"icon": "user", "description": "【不正利用の例】\nファイル交換ソフトの使用\n個人情報等・業務メールの外部送付\nWebからのダウンロード 等", "callout": "× 通信遮断", "calloutSize": "h1", "attention": "problem"}, "monitor": {"icon": "shield", "description": "① 操作ログ収集：PC操作ログを収集\n② ログチェック：社内ルールでアプリの使用を監視", "callout": "③ 通信制御\n不正利用PCの通信を\n即座にネットワークから遮断", "calloutSize": "h4", "attention": "focus", "fontFamily": "serif"}}, "grid": {"columns": 3, "items": [{"id": "servers"}, {"id": "lan"}, {"id": "external"}, {"id": "pc", "colSpan": 2}, {"id": "patent"}]}, "edges": {"2": {"routing": "straight", "attention": "problem"}, "3": {"attention": "focus"}, "4": {"attention": "focus"}}}
+flowchart TB
+  servers[業務サーバー群]
+  external[社外ネットワーク]
+  lan[社内LAN]
+  pc[利用者PC]
+  subgraph patent[特許出願中部分（原図の表記）]
+    monitor[監視・通信制御]
+  end
+  servers --- lan
+  external --- lan
+  lan --x pc
+  pc -->|① 操作ログ| monitor
+  monitor -->|③ 通信制御| lan
+  style lan fill:#fff9bd,stroke:#a59b24,color:#242417
+  style servers stroke:#64748b
+  style external stroke:#25848c
+  style pc stroke:#dc2626
+  style monitor stroke:#df6a19
+  style patent fill:#fffaf2,stroke:#df6a19,color:#a34a13
+  linkStyle default stroke:#48535e,stroke-width:2px
+  linkStyle 2 stroke:#dc2626,stroke-width:6px
+  linkStyle 3,4 stroke:#e67b18,stroke-width:3px

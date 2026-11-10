@@ -1,0 +1,7 @@
+%% archmap: {"view":"overview","nodes":{"U":{"callout":"入力元は変更なし","calloutSize":"h5"},"S":{"emphasis":"changed","callout":"処理を自動化","calloutSize":"h2"},"O":{"emphasis":"new","callout":"通知先を追加","calloutSize":24}},"edges":{"0":{"callout":"手作業を削減","calloutSize":"h3"}}}
+flowchart LR
+U[業務担当] -->|注文| S[受注サービス]
+S --> O[出荷担当]
+linkStyle default stroke:#64748b,stroke-width:3px
+linkStyle 0 stroke:#d65a23,stroke-width:5px
+linkStyle 1 stroke:#087f72,stroke-width:4px
