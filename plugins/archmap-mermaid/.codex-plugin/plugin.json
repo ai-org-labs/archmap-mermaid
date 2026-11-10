@@ -1,6 +1,6 @@
 {
   "name": "archmap-mermaid",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "自然言語・既存コード・Mermaidから、読みやすい設計図を作成・更新。AWSなどのアイコンを使い、SVG・PNGと編集可能なソースをローカルに保存します。",
   "skills": "./skills/",
   "interface": {
@@ -10,7 +10,7 @@
     "category": "Developer Tools",
     "logo": "./assets/archmap-icon.png",
     "composerIcon": "./assets/archmap-icon.png",
-    "longDescription": "自然言語の説明、開いているプロジェクトのコード、既存のMermaidから設計図を作成・更新します。システム構成、シーケンス、アクティビティ、ER、画面遷移など8種類に対応。ArchMapの配置・配線とクラウドアイコンで関係を整理し、編集可能なMermaid、SVG、PNG、HTMLプレビューを保存します。対象プロジェクトが未指定ならサンプルから試せます。Node.js 22.12以上を使うローカル実行型で、初回のみ依存パッケージを取得します。Chromium・APIキーは不要。Webサイトではインストール前にプレイグラウンドを試せます。",
+    "longDescription": "自然言語の説明、開いているプロジェクトのコード、既存のMermaidから設計図を作成・更新します。システム構成、シーケンス、アクティビティ、ER、画面遷移、システム概要、時系列、ガント、Git graphなど13種類に対応。ArchMapの配置・配線とクラウドアイコンで関係を整理し、編集可能なMermaid、SVG、PNG、HTMLプレビューを保存します。対象プロジェクトが未指定ならサンプルから試せます。Node.js 22.12以上を使うローカル実行型で、初回のみ依存パッケージを取得します。Chromium・APIキーは不要。Webサイトではインストール前にプレイグラウンドを試せます。",
     "websiteURL": "https://ai-org-labs.github.io/archmap-mermaid/playground/",
     "supportURL": "https://github.com/ai-org-labs/archmap-mermaid/issues",
     "defaultPrompt": [

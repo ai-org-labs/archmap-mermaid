@@ -1,6 +1,6 @@
 # Mermaid記法と対応範囲
 
-ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自のグリッド配置・直交配線・SVGで描画します。Mermaid標準レンダラーと同じ見た目を再現する製品ではありません。対応する構文は以下の範囲です。
+ArchMap Mermaid は、公式 Mermaid 12.3.0 のパーサーで解析し、独自のグリッド配置・直交配線・SVGで描画します。Mermaid標準レンダラーと同じ見た目を再現する製品ではありません。対応する構文は以下の範囲です。
 
 ## 対応表
 
@@ -19,9 +19,10 @@ ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自
 | Mindmap／マインドマップ | × | — |
 | Block／ブロック図 | × | — |
 | Requirement／要求図 | × | — |
-| GitGraph | × | — |
-| Gantt／ガントチャート | × | — |
-| Timeline／タイムライン | × | — |
+| GitGraph | ○ | commit・branch・checkout/switch・merge・cherry-pick、タグ・種類・ブランチ順、LR/TB/BT。詳細はGit graph節 |
+| Gantt／ガントチャート | ○ | section・日付/期間・休日除外・after/until・進捗・マイルストーン・配色。詳細はガント節 |
+| Timeline／タイムライン | ○ | 期間・複数イベント・section。記述順、等間隔の年表 |
+| Event Modeling | ○（基本構文） | frame / reset / 明示参照 / data。独立note・GWT・entity定義は未対応 |
 | User Journey | × | — |
 | Kanban／カンバン | × | — |
 | Pie／円グラフ | × | — |
@@ -41,6 +42,11 @@ ArchMap Mermaid は、公式 Mermaid 12.0.0 のパーサーで解析し、独自
 | --- | --- | --- |
 | ER図 | `erDiagram` | 不要 |
 | ユースケース図 | `usecase-beta` | 不要 |
+| システム概要・変更影響 | `flowchart LR` | `overview` |
+| 施策・出来事の年表 | `timeline` | 宣言から判定 |
+| コミット・ブランチ・マージ | `gitGraph` | 宣言から判定 |
+| 工程・日程・依存関係 | `gantt` | 宣言から判定 |
+| 情報の変化 | `eventmodeling` | 宣言から判定 |
 | システム構成図 | `flowchart LR` | `system`（既定） |
 | レイヤースタック図 | `flowchart TB` | `layers` |
 | シーケンス図 | `sequenceDiagram` | 不要 |
@@ -309,7 +315,7 @@ ER・ユースケースとも方向はLR / RL / TB / TD / BTです。任意のMe
 
 ## 任意の表示設定
 
-1文書に1行の `%% archmap: JSON` を書けます。改行を含む複数行のJSONは未対応です。設定を省略しても標準Mermaidだけで描画できます。
+1文書に1ブロックの `%% archmap: JSON` を書けます。1行形式に加え、各行を `%%` で始める複数行JSONに対応します。設定を省略しても標準Mermaidだけで描画できます。
 
 ```mermaid
 %% archmap: {"view":"system","style":"icons","nodes":{"api":{"icon":"gcp/cloud_run","description":"注文を受け付ける","color":"blue","at":[1,1]},"db":{"icon":"database","color":"green","at":[2,1]}}}
@@ -319,7 +325,7 @@ flowchart LR
 
 | キー | 値と意味 |
 | --- | --- |
-| `view` | `system` / `layers` / `screens` / `activity` / `er` / `usecase` / `bpmn`。シーケンスは宣言から判定 |
+| `view` | `system` / `layers` / `screens` / `activity` / `er` / `usecase` / `bpmn` / `overview` / `timeline` / `eventmodeling`。シーケンスは宣言から判定 |
 | `style` | `cards`（既定）/ `icons`。アイコン主体表示は system / layers 用 |
 | `nodes.ID.icon` | 組み込みアイコン一覧のキー |
 | `nodes.ID.description` | 説明の文字列 |
@@ -356,7 +362,7 @@ flowchart LR
 
 優先順位は `classDef default` → 指定クラス（指定順）→ 個別 `style` です。指定しない色はArchMapの既定色を使用します。HEX・色名・rgb/hsl系の色に対応し、背景と枠線には `none` も使えます。SVG / PNG書き出しにも反映されます。アイコン主体表示では背景・枠線をノードのプレートに適用し、ブランドアイコン自体の配色は保持します。
 
-この指定はノード・グループ用です。キャンバス全体の背景、接続線の `linkStyle`、線幅などの任意CSSには対応しません。未対応プロパティや外部リソース参照を含む色指定には警告を表示します。
+この指定はノード・グループ用です。キャンバス全体の背景や任意CSSには対応しません。接続線の線幅は下記の `linkStyle` で指定できます。未対応プロパティや外部リソース参照を含む色指定には警告を表示します。
 
 ## 未対応と互換性
 
@@ -436,3 +442,268 @@ b2 --> c1
 子から必要寸法を計算し、親は子を一つの箱として配置します。深い入れ子の寸法を全ノードの間隔へ一律に加算しません。システム図の入れ子・グリッドに適用し、手動at指定や他の図種固有の配置は維持します。折りたたんだsubgraphの内部配置は展開時に適用します。
 
 例：[親に子3つ・孫グリッド・階層横断接続](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/nested-three-children.mmd)、[6階層の方向切替](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/group-grid/nested-directions.mmd)。
+
+
+## システム概要図（overview）
+
+標準 `flowchart` に `%% archmap: {"view":"overview"}` を付ける。経営・業務向けに名称を24px、対象に付随する吹き出しを22pxで描画する。接続・ノードを自動削除しない。概略の要素選定は著者が行い、技術詳細は別図へ分ける。
+
+`nodes.<ID>.emphasis` は `new`（新規）/ `changed`（変更）/ `impact`（影響あり）/ `unchanged`（変更なし）。色と文字で区別する。`callout` は空でない300文字以下のプレーンテキスト。どちらもoverview専用。`description`、アイコン、画像、style/classによる色、入れ子・gridを併用できる。吹き出しはカードの下部に配置領域を確保するため、対象との対応が曖昧にならない。ノードの形状は概略カードへ統一する。`style:icons`はこのモードでは使わない。
+
+```mermaid
+%% archmap: {"view":"overview","nodes":{"api":{"emphasis":"changed","callout":"二重入力をなくす","icon":"server"},"db":{"emphasis":"impact","callout":"在庫を即時更新"}}}
+flowchart LR
+  user[営業担当] --> api[受注システム]
+  api --> db[在庫システム]
+```
+
+## 時系列
+
+Mermaid **12.3.0（安定版）** と公式 `@mermaid-js/parser` を使用する。13系alphaの描画APIには依存しない。
+
+### Timeline
+
+タイムラインの表示は「期間＋出来事の箇条書き」です。縦の時間軸や丸い時点マーカーは表示しません。標準構文の各イベント（コロンで区切った単位）を1項目とし、イベント内の改行は同じ項目内で折り返します。日付に比例した位置や進捗率を表すものではありません。
+
+標準 `timeline`、`title`、`section`、`期間 : イベント : イベント` と次行の `: イベント` に対応。期間は自由な文字列。入力順の縦型年表で表示し、日付を自動ソートしない。期間の長さに比例する時間軸ではない。`direction`やMermaid独自テーマはArchMapの表示へ反映しない。空のsectionは描画しない。
+
+```mermaid
+timeline
+  title 導入計画
+  section 試行
+    2026年11月 : 影響範囲を確認 : 検証環境を準備
+  section 展開
+    2027年1月 : 先行運用
+    2027年2月 : 全拠点へ展開
+```
+
+### Event Modeling
+
+標準 `eventmodeling` の `tf` / `timeframe`、`rf` / `resetframe`、`ui`・`pcr/processor`・`cmd/command`・`rmo/readmodel`・`evt/event`、名前空間、inline data、`data`参照、`->>` の複数参照に対応。公式パーサーで解析し、ArchMapのレーンと時間順の列で表示する。フレーム番号は識別子であり、数値順には並べ替えない。同じ要素の再登場は別フレームとして残す。
+
+明示参照がない通常フレームは、手前の異なる推論レーンのフレームから関連を推論する。12.3.0の挙動に合わせ、2要素の名前空間付きフレームはそれぞれ独立の推論レーンとして扱う。表示レーンをまとめてもこの関連は変えない。resetは推論を止める。`->>` は指定フレームから現在のフレームへの入力。注釈を接続として捏造しない。独立したnote / GWT / entity定義・data型指定は未対応としてエラーにする。日付・経過時間の数値軸ではない。長いフローは関連を保って複数図へ分ける。`nodes.at`、gridは使用できない。
+
+```mermaid
+eventmodeling
+  tf 01 ui Cart
+  tf 02 cmd AddItem { productId: string }
+  tf 03 evt ItemAdded
+  tf 04 rmo CartItems ->> 03
+  tf 05 ui Cart
+```
+
+GanttとXY Chartは今回の追加範囲に含めない。年表・情報の変化・数値推移を同じ図種として扱わない。
+
+
+## 直線接続と線幅
+
+flowchart を使う図（概略図を含む）では、折れ点のない接続を選べます。
+
+```mermaid
+%% archmap: {"view":"overview","routing":"straight","edges":{"1":{"routing":"orthogonal"}}}
+flowchart LR
+  A[利用者] --> B[業務サービス]
+  B --> C[データベース]
+  linkStyle default stroke-width:3px
+  linkStyle 0 stroke-width:6px
+```
+
+- `routing: "straight"`: ノードの中心を結ぶ方向で、外周から外周へ直線接続。既定値は `orthogonal`（直角配線）。
+- `edges` は入力順の0始まり接続番号ごとの表示設定。全体指定より個別指定を優先します。
+- 標準Mermaidの `linkStyle default stroke-width:3px` と `linkStyle 0,2 stroke-width:5px` に対応。個別指定が既定指定より優先されます。0.5〜16px、小数・px省略可。SVGとPNGに反映します。
+- 直線は障害物を迂回しません。交差がある場合は警告を確認し、`nodes.<id>.at` で配置するか、その線だけ `orthogonal` にしてください。自己ループや重なる接続先は通常経路に戻し、警告します。
+- 概略図はカード外周（吹き出しを除く）、通常図は矩形・円・ひし形の外周を基準にします。その他の形状は外接矩形を基準にします。
+- `linkStyle` の stroke / stroke-width 以外のCSS、Mermaidの曲線指定による直線化は未対応です。通常線1.8px、太線 `==>` 3.2pxが未指定時の太さです。
+
+## 概略図の吹き出しと矢印の色
+
+```mermaid
+%% archmap: {"view":"overview","nodes":{"A":{"callout":"入力元は変更なし","calloutSize":"h5"},"B":{"callout":"処理を自動化","calloutSize":"h2"}},"edges":{"0":{"callout":"手作業を削減","calloutSize":26}}}
+flowchart LR
+  A[業務担当] --> B[受注サービス]
+  linkStyle default stroke:#64748b,stroke-width:3px
+  linkStyle 0 stroke:#d65a23,stroke-width:5px
+```
+
+- `linkStyle` の `stroke` は線と矢印先端を同じ色にします。全flowchartビューで有効。個別指定は default より優先します。外部URL・CSS変数は受け付けません。
+- 概略図（`view:"overview"`）の `nodes.<ID>.callout` で、起点・終点を含む任意のコンポーネントに吹き出しを付けます。
+- `edges.<0始まり接続番号>.callout` で線に説明を付けます。線の長い区間の中点を指す引出線付きの吹き出しです。通常の接続ラベルと併用できます。
+- `calloutSize` は12〜48の数値（px）、または `h1`=36、`h2`=30、`h3`=26、`h4`=22、`h5`=18、`h6`=16。省略時22px。見た目のサイズ指定でありHTML見出しではありません。
+- 吹き出し本文は1〜300文字のプレーンテキスト。長文は指定サイズで折り返し、高さを確保します。SVGとPNGで共通です。
+- 線の吹き出しは近傍の空き領域に配置し、空きがなければ図の右側へ広げます。密な図では引出線が交差することがあるため、配置確認が必要です。
+
+## 概略図で主役と周辺情報を分ける
+
+`view:"overview"` の nodes / edges に `attention` を指定すると、図全体に強調の階層を適用します。
+
+```mermaid
+%% archmap: {"view":"overview","nodes":{"PC":{"attention":"problem","callout":"不正利用PCの通信を遮断"},"Guard":{"attention":"focus","callout":"検知・判定・通信制御"}},"edges":{"1":{"attention":"focus"},"2":{"attention":"problem"}}}
+flowchart LR
+  LAN[社内LAN] --- PC[利用者PC]
+  PC -->|操作ログ| Guard[監視システム]
+  Guard -->|通信遮断| PC
+```
+
+| attention | 表現 |
+| --- | --- |
+| context | 周辺情報。無彩色、細い枠・線、20pxの見出し、小さなアイコン、既定16pxの吹き出し |
+| focus | 説明の主役。深緑、太い枠、26pxの見出し、既定24pxの吹き出し |
+| problem | 問題・影響箇所。赤、太い枠・接続線、26pxの見出し、既定28pxの吹き出し |
+
+1要素でも attention があれば、未指定のノード・接続線とグループは周辺情報として無彩色にします。画像・多色アイコンも周辺ではグレースケール表示します。要素・本文・関係は削除せず、透明度で文字を読みにくくしません。
+
+このモードでは attention の配色・枠幅・線幅を style / linkStyle より優先します。元の色指定はモデルに保持します。calloutSize の明示指定は優先します。attention を全て外すと通常の配色に戻ります。新規・変更などの意味を持つ emphasis とは独立した表示設定です。focus や problem は作者が指定し、接続相手へ自動伝播させません。
+
+### 主役だけ書体を変える
+
+overview の `nodes.<ID>.fontFamily` に `sans`（ゴシック）、`serif`（明朝）、`mono`（等幅）を指定できます。attention が focus または problem のノードの見出し・吹き出しにだけ反映します。本文・周辺情報は共通書体のままです。
+
+例：`"nodes":{"Guard":{"attention":"focus","fontFamily":"serif","callout":"検知から遮断まで"}}`。
+未指定は通常書体。context に切り替えると書体変更も無効になります。サイズ・色の強調は従来どおり併用できます。字幅の違いを見込んで折り返し、高さを確保します。
+フォントファイルは外部取得せず端末内のフォントへフォールバックするため、端末間で厳密に同一の字形は保証しません。SVG / PNGへ指定を反映します。
+
+### 複数行の表示設定とタイトル
+
+```mermaid
+---
+title: 監視と通信遮断のシステム概要
+---
+%% archmap: {
+%%   "view": "overview",
+%%   "nodes": {
+%%     "Guard": {
+%%       "attention": "focus",
+%%       "fontFamily": "serif",
+%%       "callout": "検知から遮断まで"
+%%     }
+%%   }
+%% }
+flowchart LR
+  PC[利用者PC] --> Guard[監視システム]
+```
+
+開始行は `%% archmap: {`、続くJSONの全行に `%%` を付け、`%% }` で閉じます。標準JSONなので末尾カンマやJSON内コメントは使えません。1文書に設定ブロックは1つ。従来の1行形式も有効です。プレイグラウンドのカード／アイコン切り替えでも複数行形式を保持します。
+
+タイトルは標準MermaidのYAML frontmatter（先頭の `---`）に `title:` で指定します。archmapブロックをfrontmatterの前に置いても解析できます。図の上部に表示し、長いタイトルは折り返して領域を確保します。複数行タイトルはYAMLの `title: |` が使用できます。`archmap.title` は設定項目ではありません。
+
+
+## ガントチャート
+
+Mermaid標準の `gantt` を使います。日付・期間・依存関係の計算は公式Mermaid 12.3.0、描画はArchMapです。タスク名と期間を左の独立欄に置き、短いバーでも名前を省略しません。sectionの帯、休日の薄い網掛け、日付軸、依存線で工程を読み取れます。
+
+```mermaid
+---
+title: 新サービスの公開計画
+config:
+  theme: base
+  themeVariables:
+    taskBkgColor: "#477fa8"
+    activeTaskBkgColor: "#168575"
+    critBkgColor: "#ce5960"
+    doneTaskBkgColor: "#91a4b5"
+---
+gantt
+  dateFormat YYYY-MM-DD
+  axisFormat %m/%d
+  tickInterval 1week
+  weekday monday
+  excludes weekends
+  todayMarker off
+
+  section 計画・設計
+  要件整理と合意                 :done, scope, 2026-11-02, 3d
+  システム設計                   :active, design, after scope, 4d
+  運用・セキュリティ設計         :security, after scope, 3d
+
+  section 開発・検証
+  API・データ基盤の実装         :api, after design, 5d
+  画面の実装                     :ui, after design, 4d
+  結合テスト                     :crit, test, after api ui security, 3d
+  利用者による受入確認           :crit, review, after test, 2d
+
+  section 公開
+  運用手順と切戻し手順の準備     :ops, after security, 6d
+  本番公開                       :milestone, release, after review ops, 0d
+
+```
+
+- `dateFormat`、開始日＋終了日/期間、期間のみの順次実行、`after a b`、`until a b` に対応。実線はafter/順次実行、破線はuntil。複数依存を省略しません。
+- `section`、`done`、`active`、`crit`、`milestone`、`vert`、`inclusiveEndDates`、`excludes` / `includes`、`weekend friday|saturday` を公式の日付計算に従って反映。マイルストーンは標準どおり期間の中点に配置します。
+- `axisFormat` は標準の時刻書式。`tickInterval 1day / 1week / 1month` 等と `weekday monday` に対応します。目盛りが密な場合は読みやすい間隔に間引きます。時間単位・分単位の工程にも対応します。
+- `todayMarker off` で今日の線を非表示。今日が表示範囲内の場合のみ表示します。今日を示す線の色は `themeVariables.todayLineColor`。`todayMarker` の任意CSSは適用せず警告します。
+- 配色は標準frontmatterの `config.themeVariables` で指定します。`taskBkgColor` / `taskBorderColor`、`activeTaskBkgColor` / `activeTaskBorderColor`、`doneTaskBkgColor` / `doneTaskBorderColor`、`critBkgColor` / `critBorderColor`、`taskTextColor`、`gridColor`、`todayLineColor` を使用できます。CSSリテラル色のみ許可し、外部URL・任意CSSは使用しません。
+- 特定タスクのバーだけ変える場合は既存表示設定 `%% archmap: {"nodes":{"api":{"color":"purple"}}}` を使用できます（blue / green / orange / purple / gray）。日程や依存関係はMermaid本文に記述します。これは標準Mermaidのタスク構文を増やすものではありません。
+- 可読性のため1タスク1行・上部日付軸を採用します。`topAxis` の有無にかかわらず上部に表示し、compact/行高/余白等のMermaid配置設定は適用しません。未対応設定は警告します。click/link/callback、任意CSSは未対応です。
+- 日付未解決、依存の循環、不明なタスクID、重複ID、逆転した日付はエラー。400タスク・1,000依存・100年以内を上限とします。手動grid/atは日付軸を崩すため使用できません。長大な計画は工程ごとに分割してください。
+
+
+### 時間・分単位と追加列
+
+`dateFormat YYYY-MM-DD HH:mm`、`15m`、`2h`、`axisFormat %H:%M`、`tickInterval 5minute` の標準構文で時間・分単位を指定できます。短い計画は表示期間に合わせて拡大し、複数日にまたがる場合も時刻を省略しません。
+
+タスク名・期間の欄は常に表示します。追加列は `%% archmap:` の `gantt.columns`、値は `gantt.rows.<タスクID>` に指定します。日程・依存の正本は引き続きMermaid本文です。
+
+```mermaid
+%% archmap: {
+%%   "gantt": {
+%%     "columns": [
+%%       {"key": "owner", "label": "担当者", "width": 120},
+%%       {"key": "status", "label": "状態", "width": 120},
+%%       {"key": "duration", "label": "経過時間", "width": 100}
+%%     ],
+%%     "rows": {
+%%       "backup": {"owner": "運用チーム"},
+%%       "check": {"owner": "運用チーム"},
+%%       "deploy": {"owner": "開発チーム"},
+%%       "verify": {"owner": "QAチーム"},
+%%       "release": {"owner": "運用責任者"}
+%%     }
+%%   }
+%% }
+gantt
+  title リリース当日の作業計画
+  dateFormat YYYY-MM-DD HH:mm
+  axisFormat %H:%M
+  tickInterval 5minute
+  todayMarker off
+  section 準備
+  バックアップ取得 :done, backup, 2026-11-11 09:00, 10m
+  切戻し手順の確認 :active, check, after backup, 5m
+  section 切替・確認
+  アプリケーション更新 :crit, deploy, after check, 15m
+  動作確認 :verify, after deploy, 20m
+  公開完了 :milestone, release, after verify, 0m
+
+```
+
+- `columns`: 表示順に `key`、`label`、任意の `width`（既定140px、80〜240px）を指定。最大6列、追加列の合計幅は960px以下。
+- 自動列: `id`（ID）、`start`（開始）、`end`（終了）、`duration`（経過時間）、`status`（状態）。これらはMermaidから計算し、rowsで上書きできません。経過時間は表示期間の暦時間で、休日を引いた作業工数ではありません。
+- 任意列: `owner`、`memo` 等。rowsに文字列・数値・真偽値を記述できます。未指定は「—」。keyは英字始まりの英数字・アンダースコア。一意である必要があり、task / constructor / prototype等は使用できません。
+- 列見出し・セルは折り返し、最も長いセルに合わせて行高を調整します。値は500文字以内。追加列はArchMapの表示設定であり、標準Mermaidの独自タスク構文ではありません。
+
+
+## Git graph
+
+標準 `gitGraph` を公式Mermaidで解析し、ArchMapで描画します。Git履歴・ブランチ戦略の図であり、面積比を示すTreemapや一般的な親子ツリーとは異なります。
+
+```mermaid
+---
+title: 開発とリリース
+---
+gitGraph LR:
+  commit id:"初期構成"
+  branch feature
+  commit id:"機能追加" type:HIGHLIGHT
+  checkout main
+  commit id:"設定変更"
+  merge feature id:"統合" tag:"v1.0"
+```
+
+- `commit`（id、tag、type）、`branch`（order）、`checkout` / `switch`、`merge`（id、tag、type）、`cherry-pick`（id、parent、tag）を扱います。マージの両親を保持し、cherry-pickの取り込み元は破線で示します。
+- `NORMAL` は丸、`REVERSE` は×入りの丸、`HIGHLIGHT` は塗り四角。既定のマージは二重丸、cherry-pickは＋入りの丸です。色だけに意味を依存させません。
+- 方向は `gitGraph LR:`（既定）、`TB:`、`BT:`。ブランチを固定した行／列へ置き、コミット・タグは横書きで折り返します。コミットの記述順を勝手に並べ替えません。
+- frontmatterの `config.gitGraph` では `mainBranchName`、`mainBranchOrder`、`showBranches`、`showCommitLabel`、`parallelCommits` を扱います。`parallelCommits:true` の場合のみ親からの深さに基づく同時列へ配置します。
+- `config.themeVariables.git0`〜`git7` でブランチ色を指定できます（安全なCSS色のみ、8色を循環）。ラベル回転・余白・その他テーマはArchMapの配置と配色を使い、未対応の表示設定は警告します。
+- IDは重複させないでください。比較・継続更新する図は明示的なidを推奨します。id省略時の識別子はMermaidが生成します。
+- 任意のat/grid配置や直線指定は受け付けません。`%% archmap:` は `view:"gitgraph"` のみ任意で使用できます。上限は400コミット・200ブランチ・1,000接続です。
+- 履歴の意味を保持するため長い履歴を折り返して連結しません。大きい履歴はリリース・機能単位に分けるか、TB/BTを選んでください。実リポジトリを読み取る機能ではありません。
