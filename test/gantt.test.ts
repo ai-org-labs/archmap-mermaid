@@ -50,3 +50,26 @@ it('retains no-dependency parallel tasks and vertical date markers',async()=>{
 it('honors Friday weekends and included dates',async()=>{
  const m=await parse('weekend friday\nexcludes weekends\nincludes 2026-11-06\nA :a, 2026-11-05, 3d');expect(m.diagnostics).toEqual([]);expect(m.gantt!.excluded).toHaveLength(1);expect(new Date(m.gantt!.excluded[0][0]).getDay()).toBe(6);
 });
+it('scales a five-minute plan to the time axis rather than a one-hour minimum',async()=>{
+ const m=await parseDiagram('gantt\n dateFormat YYYY-MM-DD HH:mm\n axisFormat %H:%M\n tickInterval 1minute\nA :a, 2026-11-11 09:00, 2m\nB :b, after a, 3m');expect(m.diagnostics).toEqual([]);const r=renderDiagram(m);expect(r.layout.nodes[0].width).toBeGreaterThan(350);expect(r.svg).toContain('09:02');
+});
+it('adds custom and derived columns without changing dates or dependencies',async()=>{
+ const body='gantt\n dateFormat YYYY-MM-DD HH:mm\nA :active, a, 2026-11-11 09:00, 15m\nB :b, after a, 30m';
+ const plain=await parseDiagram(body),meta={gantt:{columns:[{key:'owner',label:'担当',width:120},{key:'duration',label:'経過時間',width:100},{key:'status',label:'状態',width:100}],rows:{a:{owner:'運用チーム'},b:{owner:'開発チーム'}}}};
+ const m=await parseDiagram('%% archmap: '+JSON.stringify(meta)+'\n'+body);expect(m.diagnostics).toEqual([]);expect(m.edges).toEqual(plain.edges);expect(m.nodes).toEqual(plain.nodes);const r=renderDiagram(m);expect(r.layout.width).toBe(renderDiagram(plain).layout.width+320);expect(r.svg).toContain('運用チーム');expect(r.svg).toContain('15分');expect(r.svg).toContain('data-column="status"');
+});
+it('measures long headers and cells and escapes text',async()=>{
+ const meta={gantt:{columns:[{key:'memo',label:'長い見出しを折り返して表示する',width:100}],rows:{a:{memo:'引継ぎ事項を確認する'.repeat(8)+'<script>'}}}};
+ const m=await parseDiagram('%% archmap: '+JSON.stringify(meta)+'\ngantt\nA :a, 2026-11-11, 1d\nB :b, after a, 1d');expect(m.diagnostics).toEqual([]);const r=renderDiagram(m);expect(r.layout.nodes[1].y-r.layout.nodes[0].y).toBeGreaterThan(200);expect(r.svg).not.toContain('<script>');expect(r.svg).toContain('—');
+});
+it.each([
+ {columns:[{key:'owner',label:'担当',width:12}]},
+ {columns:[{key:'owner',label:'担当'},{key:'owner',label:'重複'}]},
+ {columns:[{key:'owner',label:'担当'}],rows:{missing:{owner:'X'}}},
+ {columns:[{key:'start',label:'開始'}],rows:{a:{start:'変える'}}},
+ {columns:[{key:'owner',label:'担当'}],rows:{a:{unknown:'X'}}},
+ {columns:[{key:'constructor',label:'不正'}]},
+])('rejects invalid columns %j',async gantt=>{const m=await parseDiagram('%% archmap: '+JSON.stringify({gantt})+'\ngantt\nA :a, 2026-11-11, 1d');expect(m.diagnostics.some(d=>d.severity==='error')).toBe(true);});
+it('does not lose time-of-day on a multi-day plan',async()=>{
+ const m=await parseDiagram('gantt\ndateFormat YYYY-MM-DD HH:mm\nA :a, 2026-11-11 09:15, 7d');expect(m.diagnostics).toEqual([]);expect(renderDiagram(m).svg).toContain('09:15');
+});

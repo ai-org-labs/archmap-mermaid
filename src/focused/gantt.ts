@@ -60,11 +60,43 @@ export function readGantt(db:typeof GanttDB,config:Record<string,unknown>,plain:
  return {kind:'gantt',direction:'LR',nodes,groups,edges:dependencies,gantt:{axisFormat:db.getAxisFormat(),tickInterval,weekday:db.getWeekday(),todayMarker:db.getTodayMarker(),excluded,theme}};
 }
 
+/** Optional presentation table, not a second scheduling language. */
+export function readGanttColumns(model:DiagramModel,value:unknown):void {
+ const record=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&!Array.isArray(v);
+ if(!record(value)||Object.keys(value).some(k=>!['columns','rows'].includes(k))||!Array.isArray(value.columns)||value.columns.length>6)throw Error('gantt.columns は追加列の配列（最大6列）です。');
+ const keys=new Set<string>();
+ const columns=value.columns.map(c=>{
+  if(!record(c)||Object.keys(c).some(k=>!['key','label','width'].includes(k))||typeof c.key!=='string'||! /^[a-zA-Z][a-zA-Z0-9_]*$/.test(c.key)||['__proto__','constructor','prototype','task'].includes(c.key)||keys.has(c.key)||typeof c.label!=='string'||!c.label.trim()||c.label.length>80||c.width!==undefined&&(typeof c.width!=='number'||!Number.isFinite(c.width)||c.width<80||c.width>240))throw Error('列には一意のkey、label、任意のwidth（80〜240）を指定してください。');
+  keys.add(c.key);return {key:c.key,label:c.label,width:typeof c.width==='number'?c.width:140};
+ });
+ if(columns.reduce((sum,c)=>sum+c.width,0)>960)throw Error('追加列の合計幅は960以下にしてください。');
+ const rows:Record<string,Record<string,string>>=Object.create(null);
+ if(value.rows!==undefined){if(!record(value.rows))throw Error('gantt.rows はタスクIDごとの値です。');for(const [id,row] of Object.entries(value.rows)){
+  if(!model.nodes.some(n=>n.id===id)||!record(row))throw Error(`gantt.rows.${id}: タスクIDまたは値が不正です。`);
+  rows[id]=Object.create(null);for(const [key,cell] of Object.entries(row)){
+   if(!keys.has(key)||['id','start','end','duration','status'].includes(key)||!['string','number','boolean'].includes(typeof cell)||typeof cell==='number'&&!Number.isFinite(cell)||String(cell).length>500)throw Error(`gantt.rows.${id}.${key}: 未定義列・計算列への上書き、または値が不正です。`);
+   rows[id][key]=String(cell);
+  }
+ }}
+ model.gantt!.columns=columns;model.gantt!.rows=rows;
+}
+const statusText=(n:DiagramNode)=>[n.gantt!.critical?'重要':'',n.gantt!.done?'完了':n.gantt!.active?'進行中':'予定'].filter(Boolean).join(' · ');
+const datePattern=(model:DiagramModel)=>model.nodes.some(n=>[n.gantt!.start,n.gantt!.end].some(t=>{const d=new Date(t);return d.getHours()||d.getMinutes()||d.getSeconds();}))?'%Y/%m/%d %H:%M':'%Y/%m/%d';
+function cellText(model:DiagramModel,n:DiagramNode,key:string):string {
+ const t=n.gantt!,format=timeFormat(datePattern(model));
+ if(key==='id')return n.id;
+ if(key==='start'||key==='end')return format(new Date(t[key]));
+ if(key==='status')return statusText(n);
+ if(key==='duration'){const minutes=(t.end-t.start)/60000;return minutes<60?`${+minutes.toFixed(2)}分`:minutes%60?`${Math.floor(minutes/60)}時間${+(minutes%60).toFixed(2)}分`:`${minutes/60}時間`;}
+ return model.gantt!.rows?.[n.id]?.[key]??'—';
+}
+function tableColumns(model:DiagramModel){let x=340;return (model.gantt!.columns??[]).map(c=>{const column={...c,x};x+=c.width;return column;});}
+
 function frame(model:DiagramModel){
  const times=model.nodes.flatMap(n=>[n.gantt!.start,n.gantt!.end]);
- const min=Math.min(...times),max=Math.max(...times),span=Math.max(max-min,3600000),pad=span*.035;
- const left=356,width=1060,top=38+wrapText(model.title||'Gantt chart',left+width-64,26).length*34;
- return {min:min-pad,max:Math.max(max,min+3600000)+pad,span:Math.max(max,min+3600000)-min+2*pad,left,width,top};
+ const min=Math.min(...times),max=Math.max(...times),span=Math.max(max-min,60000),pad=span*.035;
+ const left=356+(model.gantt!.columns??[]).reduce((sum,c)=>sum+c.width,0),width=1060,top=38+wrapText(model.title||'Gantt chart',left+width-64,26).length*34+Math.max(0,...(model.gantt!.columns??[]).map(c=>(wrapText(c.label,c.width-24,13).length-1)*19));
+ return {min:min-pad,max:Math.max(max,min+60000)+pad,span:Math.max(max,min+60000)-min+2*pad,left,width,top};
 }
 function axisScale(model:DiagramModel){const f=frame(model);return (time:number)=>f.left+(time-f.min)/f.span*f.width;}
 export function ganttLayout(model:DiagramModel):DiagramLayout{
@@ -72,7 +104,7 @@ export function ganttLayout(model:DiagramModel):DiagramLayout{
  const nodes:DiagramLayoutNode[]=[],groups:DiagramLayout['groups']=[];
  for(const n of model.nodes){
   if(n.group!==group){group=n.group;if(group){const g=model.groups.find(g=>g.id===group)!;const lines=wrapText(g.label,f.left+f.width-64,16);const h=lines.length*23+18;groups.push({group:g,x:24,y,width:f.left+f.width-12,height:h});y+=h;}}
-  const rowHeight=Math.max(68,wrapText(n.label,290,16).length*22+52),t=n.gantt!;
+  const rowHeight=Math.max(68,wrapText(n.label,290,16).length*22+52,...tableColumns(model).map(c=>wrapText(cellText(model,n,c.key),c.width-24,14).length*20+32)),t=n.gantt!;
   const midpoint=(x(t.start)+x(t.end))/2,w=t.milestone?18:Math.max(1,x(t.end)-x(t.start));
   nodes.push({node:n,x:t.milestone?midpoint-9:x(t.start),y:y+12,width:w,height:28});y+=rowHeight;
  }
@@ -108,20 +140,22 @@ export function renderGantt(model:DiagramModel):DiagramRenderResult{
  const fmt=timeFormat(model.gantt!.axisFormat||(f.span<DAY*2?'%m/%d %H:%M':f.span>DAY*365?'%Y/%m':'%m/%d'));
  let body=lines(model.title||'Gantt chart',32,44,layout.width-64,26,'#25384b',700);
  body+=label('タスク / 期間',32,axisY,13,'#586c80',600);
+ for(const c of tableColumns(model)){const h=wrapText(c.label,c.width-24,13).length;body+=lines(c.label,c.x+12,axisY-(h-1)*19,c.width-24,13,'#586c80',600)+`<path d="M ${c.x} ${f.top+34} V ${bottom}" stroke="#edf1f5"/>`;}
  const shade=model.gantt!.excluded.map(([a,b])=>`<rect x="${scale(a)}" y="${f.top+40}" width="${scale(b)-scale(a)}" height="${bottom-f.top-40}" fill="#64748b" opacity=".07"/>`).join('');body+=shade;
  let previous=-Infinity;
  for(const tick of ticks(model)){const px=scale(+tick),value=fmt(tick),width=Math.max(70,value.length*8);if(px-previous<width+14)continue;previous=px;body+=`<path d="M ${px} ${f.top+34} V ${bottom}" stroke="${escapeXml(theme.gridColor)}"/>`+label(value,px-width/2,axisY,13,'#586c80');}
  for(const g of layout.groups)body+=`<rect x="${g.x}" y="${g.y}" width="${g.width}" height="${g.height}" rx="5" fill="#edf3f7"/>`+lines(g.group.label,36,g.y+25,g.width-24,16,'#334e65',600);
  for(const e of layout.edges){const p=e.points,tip=p[p.length-1],prev=p[p.length-2],sign=tip.y>prev.y?1:-1;body+=`<path class="archmap-edge archmap-dependency" data-from="${escapeXml(e.edge.from)}" data-to="${escapeXml(e.edge.to)}" d="${p.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ')}" fill="none" stroke="#60758a" stroke-width="1.5" stroke-linejoin="round"${e.edge.label==='until'?' stroke-dasharray="4 3"':''}/><path d="M ${tip.x-4} ${tip.y-sign*5} L ${tip.x} ${tip.y} L ${tip.x+4} ${tip.y-sign*5}" fill="none" stroke="#60758a" stroke-width="1.5"/>`;}
- const date=timeFormat(f.span<DAY*3?'%m/%d %H:%M':'%Y/%m/%d');
+ const date=timeFormat(datePattern(model));
  for(const n of layout.nodes){const t=n.node.gantt!,key=t.critical?'crit':t.done?'doneTask':t.active?'activeTask':'task',fill=(n.node.paint?.fill&&safePaint(n.node.paint.fill,true)?n.node.paint.fill:theme[key+'BkgColor']),stroke=theme[key+'BorderColor'];
   body+=`<g class="archmap-node archmap-gantt-task" data-node="${escapeXml(n.node.id)}"><title>${escapeXml(n.node.label)}: ${date(new Date(t.start))} – ${date(new Date(t.end))}</title>`;
   const texts=wrapText(n.node.label,290,16);body+=lines(n.node.label,36,n.y+18,290,16,theme.taskTextColor,600)+label(`${date(new Date(t.start))} → ${date(new Date(t.end))}`,36,n.y+18+texts.length*22,12,'#586c80');
+  for(const c of tableColumns(model))body+=`<g class="archmap-gantt-cell" data-column="${escapeXml(c.key)}">${lines(cellText(model,n.node,c.key),c.x+12,n.y+18,c.width-24,14)}</g>`;
   if(t.vertical)body+=`<path d="M ${scale(t.start)} ${f.top+40} V ${bottom}" stroke="${escapeXml(fill)}" stroke-width="2" stroke-dasharray="5 4"/>`;
   else if(t.milestone)body+=`<path class="archmap-gantt-milestone" d="M ${n.x+9} ${n.y+5} l 9 9 -9 9 -9 -9 Z" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"/>`;
   else body+=`<rect class="archmap-gantt-bar" x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="${Math.min(5,n.width/2)}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"/>`;
-  const status=[t.critical?'重要':'',t.done?'完了':t.active?'進行中':''].filter(Boolean).join(' · ');
-  if(status)body+=label(status,36,n.y+18+texts.length*22+17,11,'#586c80');
+  const status=statusText(n.node);
+  if(status&&!model.gantt!.columns?.some(c=>c.key==='status'))body+=label(status,36,n.y+18+texts.length*22+17,11,'#586c80');
   if(t.active&&!t.done)body+=`<path d="M ${n.x} ${n.y+n.height+4} h ${n.width}" stroke="${escapeXml(stroke)}" stroke-width="2"/>`;
   body+='</g>';
  }

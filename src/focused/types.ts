@@ -47,7 +47,7 @@ export interface DiagramGrid {
   items: { id: string; rowSpan?: number; colSpan?: number }[];
 }
 export interface DiagramModel {
-  gantt?: {axisFormat:string; tickInterval?:string; weekday:string; todayMarker:string; excluded:Array<[number,number]>; theme:Record<string,string>};
+  gantt?: {columns?:Array<{key:string;label:string;width:number}>; rows?:Record<string,Record<string,string>>; axisFormat:string; tickInterval?:string; weekday:string; todayMarker:string; excluded:Array<[number,number]>; theme:Record<string,string>};
   routing?: "straight" | "orthogonal";
   grid?: DiagramGrid;
   kind: DiagramKind;

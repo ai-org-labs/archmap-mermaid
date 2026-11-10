@@ -1,4 +1,4 @@
-import {readGantt} from './gantt.js';
+import {readGantt,readGanttColumns} from './gantt.js';
 import type GanttDB from 'mermaid/dist/diagrams/gantt/ganttDb.js';
 import {readArchmapMetadata} from './metadata.js';
 import mermaid from 'mermaid';
@@ -47,7 +47,7 @@ async function parse(source: string): Promise<DiagramModel> {
   try {
     const extracted=readArchmapMetadata(source);
     metadata=extracted.metadata;
-    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups','routing','edges'].includes(key)) error(`未対応の補助設定: ${key}`);
+    for(const key of Object.keys(metadata)) if(!['view','style','nodes','actions','grid','groups','routing','edges','gantt'].includes(key)) error(`未対応の補助設定: ${key}`);
     if(metadata.view!==undefined && !kinds.includes(String(metadata.view)))error('view が不正です。');
     if(metadata.style!==undefined && !['cards','icons'].includes(String(metadata.style)))error('style は cards / icons です。');
     let rendererConfig:RecordValue={};
@@ -256,6 +256,7 @@ async function parse(source: string): Promise<DiagramModel> {
       if(db.getLinks().size)error('状態の click / リンク操作は未対応です。');
     }
     if(['timeline','eventmodeling','gantt'].includes(model.kind) && metadata.view!==undefined && metadata.view!==model.kind)error('時系列構文と view が一致しません。');
+    if(metadata.gantt!==undefined){if(model.kind!=='gantt')error('gantt表示設定はgantt構文専用です。');else readGanttColumns(model,metadata.gantt);}
     const calloutSize=(value:unknown):number|undefined=>{
       const headings:Record<string,number>={h1:36,h2:30,h3:26,h4:22,h5:18,h6:16};
       return typeof value==='string'?headings[value]:typeof value==='number'&&Number.isFinite(value)&&value>=12&&value<=48?value:undefined;

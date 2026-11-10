@@ -42,3 +42,5 @@
 ### 工程・日程を描くとき
 
 標準 `gantt` を使い、dateFormat、section、タスクID、開始日/期間、after/untilで日程と依存を記述する。推測で実日程を確定しない。done/active/crit/milestoneで状態を示す。ArchMapはタスク名を左欄、日付を上軸に置き、依存線を表示する。色は標準config.themeVariablesで状態ごとに指定し、特定タスクの強調のみ既存nodes.ID.colorを使用する。長いタイトルを無理に短縮せず、数十工程を超える全体図は概要と詳細に分割する。対応範囲はSYNTAX.mdのガント節を参照する。
+
+ガントの時刻指定には標準dateFormatとm/h期間を使う。担当者・備考などを併記する場合はgantt.columns/rows表示設定を使い、日程を二重管理しない。duration列は経過時間であり工数ではない。詳細は構文の正本を参照する。

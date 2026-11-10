@@ -1,0 +1,29 @@
+%% archmap: {
+%%   "gantt": {
+%%     "columns": [
+%%       {"key": "owner", "label": "担当者", "width": 120},
+%%       {"key": "status", "label": "状態", "width": 120},
+%%       {"key": "duration", "label": "経過時間", "width": 100}
+%%     ],
+%%     "rows": {
+%%       "backup": {"owner": "運用チーム"},
+%%       "check": {"owner": "運用チーム"},
+%%       "deploy": {"owner": "開発チーム"},
+%%       "verify": {"owner": "QAチーム"},
+%%       "release": {"owner": "運用責任者"}
+%%     }
+%%   }
+%% }
+gantt
+  title リリース当日の作業計画
+  dateFormat YYYY-MM-DD HH:mm
+  axisFormat %H:%M
+  tickInterval 5minute
+  todayMarker off
+  section 準備
+  バックアップ取得 :done, backup, 2026-11-11 09:00, 10m
+  切戻し手順の確認 :active, check, after backup, 5m
+  section 切替・確認
+  アプリケーション更新 :crit, deploy, after check, 15m
+  動作確認 :verify, after deploy, 20m
+  公開完了 :milestone, release, after verify, 0m

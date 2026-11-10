@@ -632,3 +632,48 @@ gantt
 - 特定タスクのバーだけ変える場合は既存表示設定 `%% archmap: {"nodes":{"api":{"color":"purple"}}}` を使用できます（blue / green / orange / purple / gray）。日程や依存関係はMermaid本文に記述します。これは標準Mermaidのタスク構文を増やすものではありません。
 - 可読性のため1タスク1行・上部日付軸を採用します。`topAxis` の有無にかかわらず上部に表示し、compact/行高/余白等のMermaid配置設定は適用しません。未対応設定は警告します。click/link/callback、任意CSSは未対応です。
 - 日付未解決、依存の循環、不明なタスクID、重複ID、逆転した日付はエラー。400タスク・1,000依存・100年以内を上限とします。手動grid/atは日付軸を崩すため使用できません。長大な計画は工程ごとに分割してください。
+
+
+### 時間・分単位と追加列
+
+`dateFormat YYYY-MM-DD HH:mm`、`15m`、`2h`、`axisFormat %H:%M`、`tickInterval 5minute` の標準構文で時間・分単位を指定できます。短い計画は表示期間に合わせて拡大し、複数日にまたがる場合も時刻を省略しません。
+
+タスク名・期間の欄は常に表示します。追加列は `%% archmap:` の `gantt.columns`、値は `gantt.rows.<タスクID>` に指定します。日程・依存の正本は引き続きMermaid本文です。
+
+```mermaid
+%% archmap: {
+%%   "gantt": {
+%%     "columns": [
+%%       {"key": "owner", "label": "担当者", "width": 120},
+%%       {"key": "status", "label": "状態", "width": 120},
+%%       {"key": "duration", "label": "経過時間", "width": 100}
+%%     ],
+%%     "rows": {
+%%       "backup": {"owner": "運用チーム"},
+%%       "check": {"owner": "運用チーム"},
+%%       "deploy": {"owner": "開発チーム"},
+%%       "verify": {"owner": "QAチーム"},
+%%       "release": {"owner": "運用責任者"}
+%%     }
+%%   }
+%% }
+gantt
+  title リリース当日の作業計画
+  dateFormat YYYY-MM-DD HH:mm
+  axisFormat %H:%M
+  tickInterval 5minute
+  todayMarker off
+  section 準備
+  バックアップ取得 :done, backup, 2026-11-11 09:00, 10m
+  切戻し手順の確認 :active, check, after backup, 5m
+  section 切替・確認
+  アプリケーション更新 :crit, deploy, after check, 15m
+  動作確認 :verify, after deploy, 20m
+  公開完了 :milestone, release, after verify, 0m
+
+```
+
+- `columns`: 表示順に `key`、`label`、任意の `width`（既定140px、80〜240px）を指定。最大6列、追加列の合計幅は960px以下。
+- 自動列: `id`（ID）、`start`（開始）、`end`（終了）、`duration`（経過時間）、`status`（状態）。これらはMermaidから計算し、rowsで上書きできません。経過時間は表示期間の暦時間で、休日を引いた作業工数ではありません。
+- 任意列: `owner`、`memo` 等。rowsに文字列・数値・真偽値を記述できます。未指定は「—」。keyは英字始まりの英数字・アンダースコア。一意である必要があり、task / constructor / prototype等は使用できません。
+- 列見出し・セルは折り返し、最も長いセルに合わせて行高を調整します。値は500文字以内。追加列はArchMapの表示設定であり、標準Mermaidの独自タスク構文ではありません。
