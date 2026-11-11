@@ -70,3 +70,11 @@ assert.equal(listing.status,0);
 for(const entry of ['plugin.json','.claude-plugin/plugin.json','assets/archmap-mermaid.js','skills/diagram/SKILL.md'])assert(listing.stdout.split('\n').includes(entry));
 assert(!listing.stdout.includes('node_modules/'));
 console.log('PASS shared manifests and submission ZIP');
+
+// Distribution must carry the current skill and canonical references, not only a new binary.
+assert.equal(await fs.readFile(path.join(plugin,'skills/diagram/SKILL.md'),'utf8'),await fs.readFile(path.join(root,'plugins/archmap-mermaid/skills/diagram/SKILL.md'),'utf8'));
+for(const name of ['SYNTAX.md','DIAGRAM_LAYOUT_GUIDE.md','AI_PROMPT_TEMPLATE.md','LAYOUT_BALANCE.md','DIAGRAM_MAINTENANCE.md']){
+ const expected=(await fs.readFile(path.join(root,'docs',name),'utf8')).replaceAll('](diagrams/','](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/');
+ assert.equal(await fs.readFile(path.join(plugin,'skills/diagram/references',name),'utf8'),expected,'Stale bundled reference: '+name);
+}
+console.log('PASS current skill entrypoint and all canonical references');

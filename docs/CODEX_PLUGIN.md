@@ -2,6 +2,27 @@
 
 ローカルのCodexから、ソースを読み設計図を作成・更新し、SVG / PNG / HTMLプレビューを生成するスキル型プラグイン。APIキーやMCPサーバーは不要。自動監視ではなく、依頼・開発の節目でスキルを使用する。
 
+## インストール
+
+本体リリース **v0.1.14** に含まれるプラグインは **0.1.8**。`diagram`スキル、全13図種のレンダラー、構文・配置・AIプロンプト資料を同梱します。npm版の番号とは別です。
+
+Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
+
+```sh
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.14
+codex plugin add archmap-mermaid@archmap
+```
+
+Codexを新しい会話で開き、例えば「ArchMap Mermaidで、このプロジェクトの構成図をアイコン付きで作って」と依頼する。初回はスキルが同梱setupを実行して必要なnpm依存を準備する。APIキーとChromiumは不要。
+
+プラグイン名は `archmap-mermaid`、スキル名は `diagram`。自動選択されなければ明示的にArchMap Mermaidを指定する。実行権限はCodexの設定に従う。
+
+公開カタログは `.agents/plugins/marketplace.json`、インストール対象はビルド済みの `distribution/archmap-mermaid/`。開発元は `plugins/archmap-mermaid/`。リリース時に `npm run build:plugin` の後 `node tools/build-plugin.mjs --distribution` で同期する。distribution内を直接編集しない。
+
+更新は後述の「旧版からの更新」に従う。GitHubのリリース公開だけでは端末にインストール済みのプラグインは置き換わらない。ローカル検証は `codex plugin marketplace add /absolute/path/to/archmap-mermaid` で同じカタログを登録できる。
+
+GitHub Releaseにもプラグインのアーカイブを添付する。これはGitHub経由の配布で、OpenAIの公開プラグインディレクトリへの掲載とは別。形式は [OpenAIのプラグイン仕様](https://developers.openai.com/plugins/build/plugins) に従う。
+
 ## 配布物の作成
 
 ```sh
@@ -11,7 +32,7 @@ npm run test:plugin
 ```
 
 `plugin-dist/plugins/archmap-mermaid/` が自己完結したプラグイン本体。
-`plugin-dist/archmap-mermaid-plugin-0.1.7.tgz` が配布用アーカイブ。
+`plugin-dist/archmap-mermaid-plugin-0.1.8.tgz` が配布用アーカイブ。
 `plugin-dist/.agents/plugins/marketplace.json` がローカル検証用カタログ。
 ソースの `plugins/` は開発用で、レンダラーと構文ガイドはビルド時に同梱する。開発用ディレクトリだけを配布しない。
 
@@ -36,28 +57,9 @@ SVG・HTML・診断JSONを出力。PNGも必要なら `--png` を指定する。
 
 スキルは利用可能なCodexファイルプレビューで図を開く。プレビューAPIのない環境ではファイルリンクを返す。
 
-## インストール
-
-Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
-
-```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.13
-codex plugin add archmap-mermaid@archmap
-```
-
-Codexを新しい会話で開き、例えば「ArchMap Mermaidで、このプロジェクトの構成図をアイコン付きで作って」と依頼する。初回はスキルが同梱setupを実行して必要なnpm依存を準備する。APIキーとChromiumは不要。
-
-プラグイン名は `archmap-mermaid`、スキル名は `diagram`。自動選択されなければ明示的にArchMap Mermaidを指定する。実行権限はCodexの設定に従う。
-
-公開カタログは `.agents/plugins/marketplace.json`、インストール対象はビルド済みの `distribution/archmap-mermaid/`。開発元は `plugins/archmap-mermaid/`。リリース時に `npm run build:plugin` の後 `node tools/build-plugin.mjs --distribution` で同期する。distribution内を直接編集しない。
-
-更新は新しいリリースタグを指定してカタログを登録し、プラグインを再導入する。ローカル検証は `codex plugin marketplace add /absolute/path/to/archmap-mermaid` で同じカタログを登録できる。
-
-GitHub Releaseにもプラグインのアーカイブを添付する。これはGitHub経由の配布で、OpenAIの公開プラグインディレクトリへの掲載とは別。形式は [OpenAIのプラグイン仕様](https://developers.openai.com/plugins/build/plugins) に従う。
-
 ## テスト
 
-`test:plugin` は配布物を別の一時ディレクトリ（空白を含むパス）へコピーし、依存を初期化して8図種のSVG / PNG / HTMLを生成する。アイコン検索、PNG寸法、上書き保護、不正入力時の既存出力維持、更新、外部画像の拒否も検証する。配布元のnode_modulesやソースを実行時に参照しない。
+`test:plugin` は配布物を別の一時ディレクトリ（空白を含むパス）へコピーし、依存を初期化して全13図種のSVG / PNG / HTMLを生成する。アイコン検索、PNG寸法、上書き保護、不正入力時の既存出力維持、更新、外部画像の拒否も検証する。配布元のnode_modulesやソースを実行時に参照しない。
 
 ## ArchMap Icons
 
@@ -78,20 +80,25 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 個人環境へインストールすれば、各プロジェクトの会話から利用できます。対象は現在の作業ディレクトリや明示したファイルで判断します。不明な場合は対象を確認し、無関係なリポジトリを推測して変更しません。別端末では別途インストールとNode.jsの準備が必要です。
 
-### アイコンや説明が古い場合
+## 旧版からの更新（スキル・レンダラーをまとめて更新）
 
-キャッシュを直接書き換えるのではなく、新しいタグのカタログを取得して再導入します。旧タグで登録済みの場合は、先にカタログ登録を外してください（作成した図やプロジェクトは削除されません）。
+まず `codex plugin list` で `archmap-mermaid@archmap` の版を確認します。旧版の場合は、キャッシュを直接編集せず、以下でカタログを新しいタグへ切り替えて再導入します。`--ref` は固定参照なので、旧タグのまま `marketplace upgrade` しても新しいリリースタグへは切り替わりません。
+
+カタログ登録の削除は作成した図やプロジェクトを削除しません。以下は `archmap` カタログだけを対象にします。
 
 ```sh
 codex plugin marketplace remove archmap
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.13
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.14
 codex plugin add archmap-mermaid@archmap
 ```
 
-`codex plugin list`で`installed, enabled`とバージョン`0.1.7`を確認してください。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
+`codex plugin list`で`archmap-mermaid@archmap`が`installed, enabled`、バージョン`0.1.8`になったことを確認してください。スキルはプラグイン同梱なので、別途Skillsへコピー・インストールする必要はありません。更新後は新しい会話で利用してください。既存会話に読み込まれた旧スキルの説明は自動で差し替わるとは限りません。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
 
 ## 開発と一緒に図を維持する
 
 「このプロジェクトでは開発に合わせて設計図も更新して」と依頼すると、対象図・保存先と継続更新の方針をプロジェクトに記録します。以後は関連する設計・実装変更の節目で更新します。「継続更新を止めて」で停止できます。常時監視や毎ターンの自動実行を保証する機能ではありません。
 
 [開始・停止・引き継ぎの手順](DIAGRAM_MAINTENANCE.md)
+
+
+コマンド仕様は[OpenAI公式Developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)を参照。利用中のCLIで `codex plugin --help` にコマンドが出ない場合はCodex CLIの更新を確認してください。
