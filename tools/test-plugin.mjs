@@ -78,3 +78,10 @@ for(const name of ['SYNTAX.md','DIAGRAM_LAYOUT_GUIDE.md','AI_PROMPT_TEMPLATE.md'
  assert.equal(await fs.readFile(path.join(plugin,'skills/diagram/references',name),'utf8'),expected,'Stale bundled reference: '+name);
 }
 console.log('PASS current skill entrypoint and all canonical references');
+
+const iconTsv=await fs.readFile(path.join(plugin,'skills/diagram/references/ICON_CATALOG.tsv'),'utf8');
+const iconRows=iconTsv.trimEnd().split('\n');
+assert.equal(iconRows.shift(),'key\tlabel');
+assert.deepEqual(iconRows.map(row=>row.split('\t')),catalog.map(({key,label})=>[key,String(label).replace(/[\t\r\n]+/g,' ')]));
+assert.equal(new Set(iconRows.map(row=>row.split('\t')[0])).size,catalog.length);
+console.log('PASS icon reference matches every runtime key and label, including aliases');

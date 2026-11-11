@@ -26,16 +26,9 @@ Codexでは[インストール・旧版からの更新](CODEX_PLUGIN.md)、Claud
 
 ## 別プロジェクトで使う
 
-このリポジトリを参照できる環境なら `agents/diagram-designer.md` の実際の場所を指定して読み込ませます。コピーして使う場合は次のファイルを相対配置のままコピーし、利用先の既存 `AGENTS.md` に参照を追加してください。既存の指示を上書きしないでください。
+通常はプラグインを導入してください。手動配置する場合は、ビルド済みの `distribution/archmap-mermaid/` を相対配置を保って丸ごと置き、その中の `skills/diagram/SKILL.md` を入口にします。スキル本文だけをコピーすると参照資料・アイコン一覧・描画CLIが不足します。
 
-- `agents/diagram-designer.md`
-- `docs/SYNTAX.md`
-- `docs/DIAGRAM_LAYOUT_GUIDE.md`
-- `docs/LAYOUT_BALANCE.md`
-- `docs/AI_PROMPT_TEMPLATE.md`
-- 必要なら `.github/agents/archmap-designer.agent.md` と、その参照先の入口
-
-描画実行にはArchMap Mermaid本体かPlaygroundが別途必要です。コピーした仕様は自動更新されません。元リポジトリの更新時に同期してください。
+利用先の既存 `AGENTS.md` に参照を追記する場合も、既存の指示を上書きしないでください。手動コピーした配布物は自動更新されません。
 
 ## チャットだけで使う
 

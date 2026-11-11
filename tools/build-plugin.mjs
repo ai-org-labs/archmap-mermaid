@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import {iconCatalogTsv} from './icon-catalog.mjs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
@@ -17,6 +18,8 @@ for(const name of ['SYNTAX.md','DIAGRAM_LAYOUT_GUIDE.md','AI_PROMPT_TEMPLATE.md'
  const text=await fs.readFile(path.join(root,'docs',name),'utf8');
  await fs.writeFile(path.join(refs,name),text.replaceAll('](diagrams/','](https://ai-org-labs.github.io/archmap-mermaid/docs/diagrams/'));
 }
+const renderer=await import(new URL('../dist/archmap-mermaid.js',import.meta.url));
+await fs.writeFile(path.join(refs,'ICON_CATALOG.tsv'),iconCatalogTsv(renderer));
 const marketplace={name:'archmap-local',interface:{displayName:'ArchMap'},plugins:[{name:'archmap-mermaid',source:{source:'local',path:'./plugins/archmap-mermaid'},policy:{installation:'AVAILABLE',authentication:'ON_USE'},category:'Developer Tools'}]};
 await fs.mkdir(path.join(output,'.agents/plugins'),{recursive:true});
 await fs.writeFile(path.join(output,'.agents/plugins/marketplace.json'),JSON.stringify(marketplace,null,2)+'\n');
