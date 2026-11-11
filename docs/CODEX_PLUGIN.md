@@ -4,12 +4,12 @@
 
 ## インストール
 
-本体リリース **v0.1.14** に含まれるプラグインは **0.1.8**。`diagram`スキル、全13図種のレンダラー、構文・配置・AIプロンプト資料を同梱します。npm版の番号とは別です。
+本体リリース **v0.1.15** に含まれるプラグインは **0.1.9**。`diagram`スキル、全13図種のレンダラー、構文・配置・AIプロンプト資料を同梱します。npm版の番号とは別です。
 
 Node.js 22.12以上とCodex CLIを用意して、次を実行する。利用者によるレンダラーのビルドは不要。
 
 ```sh
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.14
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.15
 codex plugin add archmap-mermaid@archmap
 ```
 
@@ -32,7 +32,7 @@ npm run test:plugin
 ```
 
 `plugin-dist/plugins/archmap-mermaid/` が自己完結したプラグイン本体。
-`plugin-dist/archmap-mermaid-plugin-0.1.8.tgz` が配布用アーカイブ。
+`plugin-dist/archmap-mermaid-plugin-0.1.9.tgz` が配布用アーカイブ。
 `plugin-dist/.agents/plugins/marketplace.json` がローカル検証用カタログ。
 ソースの `plugins/` は開発用で、レンダラーと構文ガイドはビルド時に同梱する。開発用ディレクトリだけを配布しない。
 
@@ -88,11 +88,11 @@ PNG変換では `auto-start-reverse` の互換差を避けるため、線の各�
 
 ```sh
 codex plugin marketplace remove archmap
-codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.14
+codex plugin marketplace add ai-org-labs/archmap-mermaid --ref v0.1.15
 codex plugin add archmap-mermaid@archmap
 ```
 
-`codex plugin list`で`archmap-mermaid@archmap`が`installed, enabled`、バージョン`0.1.8`になったことを確認してください。スキルはプラグイン同梱なので、別途Skillsへコピー・インストールする必要はありません。更新後は新しい会話で利用してください。既存会話に読み込まれた旧スキルの説明は自動で差し替わるとは限りません。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
+`codex plugin list`で`archmap-mermaid@archmap`が`installed, enabled`、バージョン`0.1.9`になったことを確認してください。スキルはプラグイン同梱なので、別途Skillsへコピー・インストールする必要はありません。更新後は新しい会話で利用してください。既存会話に読み込まれた旧スキルの説明は自動で差し替わるとは限りません。アプリの既存画面が更新されない場合は画面を開き直し、それでも古ければアプリを再起動してください。
 
 ## 開発と一緒に図を維持する
 
